@@ -112,28 +112,14 @@ def register():
     return jsonify({"message": "User registered successfully!"}), 201
 
 
-
 @auth_bp.route('/check-auth', methods=['GET'])
 def check_auth():
     token = request.cookies.get("access_token")
-
+    print("Received Cookies:", request.cookies)
     if not token:
         return jsonify({"error": "Not authenticated"}), 401
-
     decoded_token = decode_jwt(token)
-
     if not decoded_token:
         return jsonify({"error": "Invalid or expired token"}), 401
-
     print("Decoded JWT:", decoded_token)
-
-    # Ensure username_or_email is included in response
-    return jsonify({
-        "message": "Authenticated",
-        "user": {
-            "id": decoded_token.get("user_id"),
-            "role": decoded_token.get("role"),
-            "username_or_email": decoded_token.get("username_or_email"),
-            "institution_id": decoded_token.get("institution_id")
-        }
-    }), 200
+    return jsonify({"message": "Authenticated", "user": decoded_token}), 200
