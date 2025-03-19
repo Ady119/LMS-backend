@@ -43,18 +43,12 @@ class ProdConfig(Config):
     DEBUG = False
     raw_db_url = os.getenv('DATABASE_URL')
 
-    if raw_db_url and raw_db_url.startswith("mysql://"):
-        raw_db_url = raw_db_url.replace("mysql://", "mysql+pymysql://", 1)
-
-    SQLALCHEMY_DATABASE_URI = raw_db_url
-    SQLALCHEMY_ENGINE_OPTIONS = {
-        "pool_pre_ping": True,   # Keep connection alive
-        "pool_recycle": 1800,    # Recycle connections every 30 minutes
-        "pool_size": 10,         # Maintain a pool of 10 connections
-        "max_overflow": 5        # Allow 5 extra connections if needed
-    }
-
-    SESSION_COOKIE_SECURE = True
+    if raw_db_url:
+        if raw_db_url.startswith("mysql://"):
+            raw_db_url = raw_db_url.replace("mysql://", "mysql+pymysql://", 1)
+        SQLALCHEMY_DATABASE_URI = raw_db_url
+    else:
+        SQLALCHEMY_DATABASE_URI = os.getenv('JAWSDB_URL')  # Use JawsDB URL if DATABASE_URL isn't found
 
 
 # **Auto-detect environment based on the RENDER_ENV variable**

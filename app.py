@@ -46,5 +46,4 @@ app.register_blueprint(student_bp, url_prefix='/api/student')
 
 # Use Flask-Migrate Instead of `db.create_all()`
 if __name__ == '__main__':
-    port = os.environ.get("PORT", 5000)
-    app.run(host="0.0.0.0", port=port)
+    app.run(debug=app.config['DEBUG'])
