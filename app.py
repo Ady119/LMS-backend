@@ -26,14 +26,8 @@ if not os.path.exists(app.config["UPLOAD_FOLDER"]):
     os.makedirs(app.config["UPLOAD_FOLDER"])
 
 
-CORS(app, resources={r"/api/*": {"origins": [
-    "http://localhost:4173",  # Your frontend running at port 4173
-    "http://127.0.0.1:4173",  # Explicit IP version for localhost
-    "http://localhost:5173",  # Another possible frontend URL
-    "http://127.0.0.1:5173",
-    "lms-frontend-henna-seven.vercel.app", 
-    "https://lmspwa.vercel.app"
-]}}, supports_credentials=True)
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+
 
 Session(app)
 
