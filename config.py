@@ -39,6 +39,8 @@ class ProdConfig(Config):
     """Production Configuration (for Render deployment)"""
     DEBUG = False
     SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
+    print("Database URI:", os.getenv("SQLALCHEMY_DATABASE_URI"))
+
     SESSION_COOKIE_SECURE = True 
 
 # **Auto-detect environment based on the RENDER_ENV variable**
