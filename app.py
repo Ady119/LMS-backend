@@ -18,7 +18,7 @@ load_dotenv()
 # Initialize Flask app
 app = Flask(__name__)
 
-env = os.environ.get("FLASK_ENV", "development")
+env = os.environ.get("FLASK_ENV", "production")
 app.config.from_object(config_dict[env])
 
 # Ensure Upload Folder Exists
@@ -30,12 +30,15 @@ CORS(app, resources={r"/api/*": {"origins": [
     "http://localhost:4173",  # Your frontend running at port 4173
     "http://127.0.0.1:4173",  # Explicit IP version for localhost
     "http://localhost:5173",  # Another possible frontend URL
-    "http://127.0.0.1:5173",  # Explicit IP for port 5173
+    "http://127.0.0.1:5173",
+    "https://lmspwa-adrians-projects-6add6cfa.vercel.app"
 ]}}, supports_credentials=True)
 
 db.init_app(app)
 mail = Mail(app)
 migrate = Migrate(app, db)
+print("Environment:", os.getenv("FLASK_ENV"))
+print("Database URI:", os.getenv("SQLALCHEMY_DATABASE_URI"))
 
 # Register blueprints
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
