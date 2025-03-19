@@ -1,5 +1,6 @@
 import os
 from datetime import timedelta
+from urllib.parse import urlparse
 
 class Config:
     """Base configuration (applies to all environments)"""
@@ -36,11 +37,15 @@ class TestConfig(Config):
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
 
 class ProdConfig(Config):
-    """Production Configuration (for Render deployment)"""
+    """Production Configuration (for Railway deployment)"""
     DEBUG = False
-    # Use the correct environment variable to set the URI
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
-    print("Database URI:", SQLALCHEMY_DATABASE_URI)  # Print the actual database URI for debugging
+    raw_db_url = os.getenv('DATABASE_URL')
+
+    if raw_db_url and raw_db_url.startswith("mysql://"):
+        raw_db_url = raw_db_url.replace("mysql://", "mysql+pymysql://", 1)
+
+    SQLALCHEMY_DATABASE_URI = raw_db_url
+    print("Database URI:", SQLALCHEMY_DATABASE_URI)  # Debugging print for Railway logs
 
     SESSION_COOKIE_SECURE = True
 
