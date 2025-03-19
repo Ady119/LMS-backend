@@ -28,7 +28,6 @@ if not os.path.exists(app.config["UPLOAD_FOLDER"]):
 
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
-
 Session(app)
 
 db.init_app(app)
