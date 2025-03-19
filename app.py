@@ -31,7 +31,7 @@ CORS(app, resources={r"/api/*": {"origins": [
     "http://127.0.0.1:4173",  # Explicit IP version for localhost
     "http://localhost:5173",  # Another possible frontend URL
     "http://127.0.0.1:5173",
-    "https://lmspwa-adrians-projects-6add6cfa.vercel.app", 
+    "lms-frontend-henna-seven.vercel.app", 
     "https://lmspwa.vercel.app"
 ]}}, supports_credentials=True)
 
