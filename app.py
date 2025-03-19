@@ -37,9 +37,7 @@ CORS(app, resources={r"/api/*": {"origins": [
 
 Session(app)
 
-from sqlalchemy.pool import QueuePool
-db.init_app(app, options={"pool_pre_ping": True, "pool_recycle": 1800, "pool_size": 10, "max_overflow": 5})
-
+db.init_app(app)
 mail = Mail(app)
 migrate = Migrate(app, db)
 
