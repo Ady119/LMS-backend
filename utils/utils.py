@@ -9,7 +9,7 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "your-default-secret-key")
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        print(f"🔍 Received Cookies: {request.cookies}")
+        print(f"Received Cookies: {request.cookies}")
 
         token = request.cookies.get("access_token")
         if not token:
@@ -19,7 +19,7 @@ def login_required(f):
         try:
             decoded = decode_jwt(token)
             g.user = decoded
-            print(f"✅ Decoded JWT: {decoded}")
+            print(f"Decoded JWT: {decoded}")
         except Exception as e:
             print(f"JWT Decode Error: {e}")
             return jsonify({"error": "Invalid token"}), 401

@@ -7,14 +7,12 @@ from utils.tokens import get_jwt_token, decode_jwt
 from flask_cors import CORS, cross_origin
 
 auth_bp = Blueprint('auth_bp', __name__)
-CORS(auth_bp, supports_credentials=True)
-
 
 # CORS for Blueprint
 @auth_bp.after_request
 def add_cors_headers(response):
     origin = request.headers.get('Origin')
-    if origin in ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:4173", "https://lmspwa-adrians-projects-6add6cfa.vercel.app"]:
+    if origin in ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:4173", "https://lmspwa-adrians-projects-6add6cfa.vercel.app", "https://lmspwa.vercel.app"]:
         response.headers['Access-Control-Allow-Origin'] = origin
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'

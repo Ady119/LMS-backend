@@ -13,7 +13,7 @@ def get_jwt_token(user_data):
     expiration = datetime.datetime.utcnow() + datetime.timedelta(hours=24)
     payload = {"exp": expiration, **user_data}
 
-    print("🚀 JWT Payload before encoding:", payload)
+    print("JWT Payload before encoding:", payload)
 
     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
     return token
