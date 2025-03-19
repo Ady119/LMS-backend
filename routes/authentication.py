@@ -82,7 +82,6 @@ def logout():
 
 #register Route
 @auth_bp.route('/register', methods=['POST'])
-@cross_origin(origin="http://localhost:5173", supports_credentials=True)
 def register():
     data = request.get_json()
 
@@ -115,7 +114,6 @@ def register():
 
 
 @auth_bp.route('/check-auth', methods=['GET'])
-@cross_origin(supports_credentials=True)
 def check_auth():
     token = request.cookies.get("access_token")
 

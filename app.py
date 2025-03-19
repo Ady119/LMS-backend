@@ -25,7 +25,7 @@ app.config.from_object(config_dict[env])
 if not os.path.exists(app.config["UPLOAD_FOLDER"]):
     os.makedirs(app.config["UPLOAD_FOLDER"])
 
-Session(app)
+
 CORS(app, resources={r"/api/*": {"origins": [
     "http://localhost:4173",  # Your frontend running at port 4173
     "http://127.0.0.1:4173",  # Explicit IP version for localhost
@@ -34,9 +34,12 @@ CORS(app, resources={r"/api/*": {"origins": [
     "https://lmspwa-adrians-projects-6add6cfa.vercel.app"
 ]}}, supports_credentials=True)
 
+Session(app)
+
 db.init_app(app)
 mail = Mail(app)
 migrate = Migrate(app, db)
+
 print("Environment:", os.getenv("FLASK_ENV"))
 print("Database URI:", os.getenv("SQLALCHEMY_DATABASE_URI"))
 
