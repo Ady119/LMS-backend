@@ -1,6 +1,8 @@
 import os
 from datetime import timedelta
 from urllib.parse import urlparse
+import pymysql
+pymysql.install_as_MySQLdb()
 
 class Config:
     """Base configuration (applies to all environments)"""
