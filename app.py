@@ -17,6 +17,9 @@ load_dotenv()
 
 # Initialize Flask app
 app = Flask(__name__)
+@app.route('/')
+def home():
+    return "Welcome to the LMS App!"
 
 env = os.environ.get("FLASK_ENV", "production")
 app.config.from_object(config_dict[env])
