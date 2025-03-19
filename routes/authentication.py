@@ -15,7 +15,7 @@ def after_request(response):
     allowed_origins = [
         "http://localhost:4173",
         "http://127.0.0.1:4173",
-        "https://lms-frontend-henna-seven.vercel.app",  # Verify this URL matches your frontend
+        "https://lms-frontend-henna-seven.vercel.app", 
         "https://lmspwa.vercel.app"
     ]
 
@@ -33,7 +33,7 @@ def login():
     data = request.get_json()
     username = data.get("username_or_email")
     password = data.get("password")
-
+    print(f"Received username: {username}, password: {password}")
     user = User.query.filter_by(username=username).first()
 
     if not user or not user.check_password(password):
