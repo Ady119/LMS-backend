@@ -27,6 +27,9 @@ def login():
     username = data.get("username_or_email")
     password = data.get("password")
     print(f"Received username: {username}, password: {password}")
+    data = request.get_json()
+    print(f"Received Data: {data}")  # Add more logging to verify incoming data
+
     user = User.query.filter_by(username=username).first()
 
     if not user or not user.check_password(password):
