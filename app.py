@@ -2,7 +2,7 @@ import os
 from flask import Flask
 from flask_mail import Mail
 from flask_cors import CORS
-from flask_migrate import Migrate, upgrade  
+from flask_migrate import Migrate
 from flask_session import Session
 from dotenv import load_dotenv
 from config import config_dict
@@ -50,9 +50,7 @@ app.register_blueprint(admin_bp, url_prefix='/api/admin')
 app.register_blueprint(lecturer_bp, url_prefix='/api/lecturer')
 app.register_blueprint(student_bp, url_prefix='/api/student')
 
-with app.app_context():
-    upgrade() 
-    
+
 # Use Flask-Migrate Instead of `db.create_all()`
 if __name__ == '__main__':
     app.run(debug=app.config['DEBUG'])

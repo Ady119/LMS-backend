@@ -47,7 +47,12 @@ class ProdConfig(Config):
         raw_db_url = raw_db_url.replace("mysql://", "mysql+pymysql://", 1)
 
     SQLALCHEMY_DATABASE_URI = raw_db_url
-    print("Database URI:", SQLALCHEMY_DATABASE_URI)  # Debugging print for Railway logs
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_pre_ping": True,   # Keep connection alive
+        "pool_recycle": 1800,    # Recycle connections every 30 minutes
+        "pool_size": 10,         # Maintain a pool of 10 connections
+        "max_overflow": 5        # Allow 5 extra connections if needed
+    }
 
     SESSION_COOKIE_SECURE = True
 
