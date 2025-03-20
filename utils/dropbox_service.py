@@ -10,8 +10,7 @@ if not DROPBOX_ACCESS_TOKEN:
 dbx = dropbox.Dropbox(DROPBOX_ACCESS_TOKEN)
 
 def upload_file(file, filename, folder="assignments"):
-    dropbox_path = f"/AchievED-LMS/{folder}/{filename}"  # Store in the specified folder
-
+    dropbox_path = f"/AchievED-LMS/{folder}/{filename}"
     try:
         # Upload file
         dbx.files_upload(file.read(), dropbox_path, mode=dropbox.files.WriteMode("overwrite"))
@@ -27,19 +26,19 @@ def upload_file(file, filename, folder="assignments"):
 def get_file_link(filename, folder="assignments"):
     """Retrieve a Dropbox temporary link for a stored file."""
 
-    dropbox_path = f"/AchievED-LMS/{folder}/{filename}"  # Ensure correct folder
+    dropbox_path = f"/AchievED-LMS/{folder}/{filename}"
 
     try:
         shared_link = dbx.files_get_temporary_link(dropbox_path)
-        return shared_link.link  # ✅ Dropbox generates a temporary link
+        return shared_link.link
 
     except dropbox.exceptions.ApiError as e:
-        print(f"❌ Dropbox API Error: {e}")
-        return None  # Return None instead of crashing
+        print(f"Dropbox API Error: {e}")
+        return None
 
     except Exception as e:
-        print(f"❌ Unexpected Error: {e}")
-        return None  # Catch all unexpected errors
+        print(f" Unexpected Error: {e}")
+        return None
 
 
 def delete_file_from_dropbox(file_path):
@@ -49,15 +48,14 @@ def delete_file_from_dropbox(file_path):
             print(f"Invalid Dropbox path: {file_path}")
             return False
 
-        # ✅ Delete file from Dropbox
         dbx.files_delete_v2(file_path)
-        print(f"✅ File deleted from Dropbox: {file_path}")
+        print(f" File deleted from Dropbox: {file_path}")
         return True
 
     except dropbox.exceptions.ApiError as e:
-        print(f"❌ Dropbox API Error: {e}")
+        print(f" Dropbox API Error: {e}")
         return False
 
     except Exception as e:
-        print(f"❌ Unexpected Error: {e}")
+        print(f" Unexpected Error: {e}")
         return False

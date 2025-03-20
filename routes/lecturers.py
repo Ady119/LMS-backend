@@ -836,19 +836,31 @@ def edit_assignment(assignment_id):
 #Delete an assignment
 @lecturer_bp.route("/assignments/<int:assignment_id>", methods=["DELETE"], endpoint="delete_assignment")
 @login_required
-def delete_assignment(assignment_id):    
+def delete_assignment(assignment_id):
+    """Delete an assignment, remove it from lesson_section if assigned, and delete the file from Dropbox."""
+
     assignment = Assignment.query.get(assignment_id)
     if not assignment:
         return jsonify({"error": "Assignment not found"}), 404
 
+    # Remove assignment from lesson_section if assigned
+    linked_sections = LessonSection.query.filter_by(assignment_id=assignment.id).all()
+    for section in linked_sections:
+        section.assignment_id = None  # Unassign the assignment
+    db.session.commit()  # Commit before deleting the assignment
+
+    # Delete the file from Dropbox if exists
     if assignment.file_url:
         try:
-            delete_file_from_dropbox(assignment.file_url)
-            print(f" File deleted from Dropbox: {assignment.file_url}")
+            dropbox_file_path = "/" + assignment.file_url.split("dropbox.com/home")[-1]
+            delete_file_from_dropbox(dropbox_file_path)
+            print(f"✅ File deleted from Dropbox: {dropbox_file_path}")
 
-        except Exception as e:
-            print(f" Error deleting file from Dropbox: {e}")
+        except dropbox.exceptions.ApiError as e:
+            print(f"❌ Error deleting file from Dropbox: {e}")
+            return jsonify({"error": "Failed to delete file from Dropbox"}), 500
 
+    # Delete the assignment from the database
     db.session.delete(assignment)
     db.session.commit()
 
