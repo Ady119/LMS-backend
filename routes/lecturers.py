@@ -761,18 +761,10 @@ def get_assignments(lesson_id):
 
 
 # Create a New Assignment
-import os
-import uuid
-from werkzeug.utils import secure_filename
-from flask import jsonify, request
-import cloudinary.uploader
-from models import db, Assignment
-from flask_login import login_required
-
 @lecturer_bp.route("/assignments/new", methods=["POST"], endpoint="add_assignment")
 @login_required
 def create_assignment():
-    """Create a new assignment and upload the file to Cloudinary with correct filename handling."""
+    """Upload assignments to Cloudinary using a pre-configured upload preset."""
 
     title = request.form.get("title")
     description = request.form.get("description")
@@ -788,25 +780,24 @@ def create_assignment():
     if file:
         try:
             filename = secure_filename(file.filename)
-            file_extension = os.path.splitext(filename)[1]  # Extract extension (e.g., ".docx")
-            
+            file_extension = os.path.splitext(filename)[1]  # Extract extension
+
             if not file_extension:
                 return jsonify({"error": "Invalid file format (no extension)"}), 400
 
-            # Generate a unique filename while preserving extension
-            unique_filename = f"{uuid.uuid4()}{file_extension}"
-
-            # Upload to Cloudinary
+            # Upload file using the upload preset
             upload_result = cloudinary.uploader.upload(
                 file,
                 folder="AchievED-LMS/assignments",
-                resource_type="raw",  # Support DOCX, PDFs, ZIPs, etc.
-                public_id=unique_filename,  # Force unique filename with extension
-                overwrite=True  # Allow file updates without breaking references
+                resource_type="raw",  # Ensures support for DOCX, PDF, ZIP, etc.
+                use_filename=True,  # Keeps original filename
+                unique_filename=False,  # Allows overwriting by filename
+                overwrite=True,  # Ensures file replacement works
+                upload_preset="ml_default"  # 🔥 Use the preset name here
             )
 
             file_url = upload_result["secure_url"]
-            cloudinary_public_id = upload_result["public_id"]  # ✅ Store for later retrieval/deletion
+            cloudinary_public_id = upload_result["public_id"]
 
             print(f"✅ File uploaded successfully: {file_url}")
 
@@ -814,7 +805,7 @@ def create_assignment():
             print(f"❌ Error uploading file to Cloudinary: {e}")
             return jsonify({"error": "File upload failed"}), 500
 
-    # Save to DB
+    # Save to database
     new_assignment = Assignment(
         title=title,
         description=description,
@@ -830,7 +821,6 @@ def create_assignment():
         "message": "Assignment created successfully",
         "assignment": new_assignment.to_dict()
     }), 201
-
 
 
 #Edit assignment
