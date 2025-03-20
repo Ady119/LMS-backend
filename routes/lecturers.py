@@ -359,7 +359,7 @@ def edit_section(course_id, lesson_id, section_id):
         if section.file_url:
             old_file_path = os.path.abspath(os.path.join(upload_folder, section.file_url.replace("uploads/", "", 1)))
             if os.path.exists(old_file_path):
-                print(f"🗑️ Deleting old file: {old_file_path}")
+                print(f"Deleting old file: {old_file_path}")
                 os.remove(old_file_path)
 
         file_url, error = save_uploaded_file(file, course_id, lesson_id)
