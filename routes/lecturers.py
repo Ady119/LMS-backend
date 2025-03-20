@@ -764,7 +764,7 @@ def get_assignments(lesson_id):
 @lecturer_bp.route("/assignments/new", methods=["POST"], endpoint="add_assignment")
 @login_required
 def create_assignment():
-    """Upload assignments to Cloudinary using a pre-configured upload preset."""
+    """Upload assignments to Cloudinary with correct filename and extension."""
 
     title = request.form.get("title")
     description = request.form.get("description")
@@ -785,15 +785,15 @@ def create_assignment():
             if not file_extension:
                 return jsonify({"error": "Invalid file format (no extension)"}), 400
 
-            # Upload file using the upload preset
+            # Ensure Cloudinary saves file with correct name and extension
             upload_result = cloudinary.uploader.upload(
                 file,
                 folder="AchievED-LMS/assignments",
-                resource_type="raw",  # Ensures support for DOCX, PDF, ZIP, etc.
-                use_filename=True,  # Keeps original filename
-                unique_filename=False,  # Allows overwriting by filename
-                overwrite=True,  # Ensures file replacement works
-                upload_preset="ml_default"  # 🔥 Use the preset name here
+                resource_type="raw",  # Support DOCX, PDF, ZIP
+                use_filename=True,  # Preserve original filename
+                unique_filename=False,  # Avoids random renaming
+                overwrite=True,  # Ensures correct file replacement
+                upload_preset="custom"  # ✅ Use the preset name
             )
 
             file_url = upload_result["secure_url"]
