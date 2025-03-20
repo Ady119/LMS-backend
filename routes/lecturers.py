@@ -793,7 +793,6 @@ def create_assignment():
         description=description,
         due_date=due_date,
         file_url=file_url,  # Keep the secure URL
-        cloudinary_public_id=public_id  # Store public_id for retrieval
     )
 
     db.session.add(new_assignment)
