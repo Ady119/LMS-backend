@@ -15,7 +15,7 @@ def after_request(response):
     allowed_origins = [
         "http://localhost:4173",
         "http://127.0.0.1:4173",
-        "https://lms-frontend-henna-seven.vercel.app"
+        "https://lms-frontend-henna-sigma.vercel.app"
     ]
 
     return response
