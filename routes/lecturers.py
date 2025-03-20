@@ -1,13 +1,12 @@
 import os
 import bleach
-import uuid
 from werkzeug.utils import secure_filename, safe_join
 from flask import Blueprint, jsonify, g, request, current_app, send_from_directory, abort, send_file
 from utils.tokens import get_jwt_token, decode_jwt
 from utils.utils import login_required
-import cloudinary.uploader
-import cloudinary.api
-import cloudinary.exceptions
+from utils.dropbox_service import delete_file_from_dropbox, get_file_link, upload_file  
+
+import dropbox
 from models.users import User, db
 from models.courses import Course
 from models.course_lecturers import CourseLecturer
@@ -243,46 +242,29 @@ def get_lesson_details(course_id, lesson_id):
 ALLOWED_EXTENSIONS = {"pdf", "jpg", "png", "mp4", "zip", "txt", "docx"}
 
 def allowed_file(filename):
-    """Check if file has a valid extension."""
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
-def save_uploaded_file(file, course_id=None, lesson_id=None, is_assignment=False):
-    """Uploads files to Cloudinary while ensuring filenames and extensions are preserved."""
-
+def upload_file_to_dropbox(file, folder_path="/assignments"):    
     if not file or not allowed_file(file.filename):
         return None, "Invalid file type"
 
-    # Secure filename and extract extension
-    filename = secure_filename(file.filename.replace(" ", "_"))
-    file_extension = os.path.splitext(filename)[1]  # Extract `.pdf`, `.png`, etc.
-
-    if is_assignment:
-        cloudinary_folder = "AchievED-LMS/assignments"
-    else:
-        if not course_id or not lesson_id:
-            return None, "Course ID and Lesson ID required for lesson content"
-        cloudinary_folder = f"AchievED-LMS/course_{course_id}/lesson_{lesson_id}"
+    filename = secure_filename(file.filename)
+    dropbox_path = f"{folder_path}/{filename}"
 
     try:
-        # Ensure public_id keeps the filename with the extension
-        public_id = f"{cloudinary_folder}/{os.path.splitext(filename)[0]}"  # Remove extension
+        dbx = dropbox.Dropbox(os.getenv("DROPBOX_ACCESS_TOKEN"))
 
-        upload_result = cloudinary.uploader.upload(
-            file,
-            folder=cloudinary_folder,
-            resource_type="auto",  # Automatically detects file type
-            use_filename=True,
-            unique_filename=False,  # Ensures filename consistency
-            public_id=public_id + file_extension  # Append extension to prevent stripping
-        )
+        # Upload file
+        dbx.files_upload(file.read(), dropbox_path, mode=dropbox.files.WriteMode("overwrite"))
 
-        file_url = upload_result["secure_url"]
-        print(f"✅ File uploaded successfully: {file_url} | Public ID: {upload_result['public_id']}")
+        # Create a shared link for download
+        shared_link = dbx.sharing_create_shared_link(dropbox_path).url.replace("?dl=0", "?dl=1")
 
-        return file_url, None 
+        print(f"File uploaded successfully: {shared_link}")
+        return shared_link, None
 
     except Exception as e:
-        print(f"❌ Error uploading to Cloudinary: {e}")
+        print(f" Error uploading to Dropbox: {e}")
         return None, "Upload failed"
 
 
@@ -292,8 +274,6 @@ def save_uploaded_file(file, course_id=None, lesson_id=None, is_assignment=False
 @lecturer_bp.route("/courses/<int:course_id>/lessons/<int:lesson_id>/sections", methods=["POST"])
 @login_required
 def add_section(course_id, lesson_id):
-    """Add a new section to a lesson, allowing rich text content via Quill and Cloudinary file storage."""
-
     title = request.form.get("title")
     content_type = request.form.get("content_type")
     text_content = request.form.get("text_content", "").strip()
@@ -307,27 +287,20 @@ def add_section(course_id, lesson_id):
     if assignment_id and quiz_id:
         return jsonify({"error": "Cannot assign both quiz and assignment to the same section"}), 400
 
-    # Initialize file path
     saved_file_url = None
 
     if file:
-        filename = secure_filename(file.filename.replace(" ", "_"))
-        cloudinary_folder = f"AchievED-LMS/course_{course_id}/lesson_{lesson_id}/sections"
+        # Upload file to Dropbox instead of Cloudinary
+        dropbox_folder = f"/sections/course_{course_id}/lesson_{lesson_id}"
+        saved_file_url, error = upload_file_to_dropbox(file, folder_path=dropbox_folder)
 
-        try:
-            upload_result = cloudinary.uploader.upload(file, folder=cloudinary_folder)
-            saved_file_url = upload_result["secure_url"]
-            print(f"File uploaded successfully: {saved_file_url}")
-
-        except Exception as e:
-            print(f"Error uploading to Cloudinary: {e}")
+        if error:
             return jsonify({"error": "File upload failed"}), 500
 
-    # Sanitize rich text input
+    # Sanitize text input
     allowed_tags = ["b", "i", "u", "strong", "em", "p", "br", "ul", "ol", "li", "a", "blockquote", "h1", "h2", "h3"]
     text_content = bleach.clean(text_content, tags=allowed_tags, strip=True)
 
-    # Create a new lesson section
     new_section = LessonSection(
         lesson_id=lesson_id,
         title=title,
@@ -347,11 +320,13 @@ def add_section(course_id, lesson_id):
     }), 201
 
 
+
 #Edit section
 # ------------------------------------------------------------------------------------------------
 @lecturer_bp.route("/courses/<int:course_id>/lessons/<int:lesson_id>/sections/<int:section_id>", methods=["PUT"])
 @login_required
 def edit_section(course_id, lesson_id, section_id):
+    """Edit a lesson section, allowing file replacement via Dropbox."""
 
     section = LessonSection.query.filter_by(id=section_id, lesson_id=lesson_id).first()
     if not section:
@@ -367,34 +342,33 @@ def edit_section(course_id, lesson_id, section_id):
     quiz_id = data.get("quiz_id", section.quiz_id)
     assignment_id = data.get("assignment_id", section.assignment_id)
 
-    # Handle file replacement
     file = request.files.get("file")
     file_url = section.file_url  
-    
+
     if content_type == "file" and file:
         if section.file_url:
             try:
-                public_id = section.file_url.split("/")[-1].split(".")[0]
-                cloudinary_folder = f"AchievED-LMS/course_{course_id}/lesson_{lesson_id}/sections"
-                cloudinary_file_id = f"{cloudinary_folder}/{public_id}"
-
-                # Delete from Cloudinary
-                cloudinary.uploader.destroy(cloudinary_file_id)
-                print(f"Old file deleted from Cloudinary: {cloudinary_file_id}")
+                dropbox_file_path = section.file_url.split("dl=1")[0]
+                delete_file_from_dropbox(dropbox_file_path)
+                print(f" Old file deleted from Dropbox: {dropbox_file_path}")
 
             except Exception as e:
-                print(f" Error deleting old file from Cloudinary: {e}")
+                print(f" Error deleting old file from Dropbox: {e}")
 
         try:
-            cloudinary_folder = f"AchievED-LMS/course_{course_id}/lesson_{lesson_id}/sections"
-            upload_result = cloudinary.uploader.upload(file, folder=cloudinary_folder)
-            file_url = upload_result["secure_url"]
-            print(f" New file uploaded successfully: {file_url}")
+            dropbox_folder = f"/sections/course_{course_id}/lesson_{lesson_id}"
+            file_url, error = upload_file_to_dropbox(file, folder_path=dropbox_folder)
+
+            if error:
+                return jsonify({"error": "File upload failed"}), 500
+
+            print(f"New file uploaded successfully: {file_url}")
 
         except Exception as e:
-            print(f" Error uploading new file to Cloudinary: {e}")
+            print(f" Error uploading new file to Dropbox: {e}")
             return jsonify({"error": "File upload failed"}), 500
 
+    # Sanitize text content
     allowed_tags = ["b", "i", "u", "strong", "em", "p", "br", "ul", "ol", "li", "a", "blockquote", "h1", "h2", "h3"]
     text_content = bleach.clean(text_content, tags=allowed_tags, strip=True)
 
@@ -427,27 +401,24 @@ def edit_section(course_id, lesson_id, section_id):
     return jsonify({"message": "Section updated successfully", "section": section.to_dict()}), 200
 
 
+
 #                                       **Serve Uploaded Files**
 # ------------------------------------------------------------------------------------------------
 @lecturer_bp.route("/download/course/<int:course_id>/lesson/<int:lesson_id>/<path:filename>")
+@login_required
 def download_file(course_id, lesson_id, filename):
+    """Retrieve a lesson file's download link from Dropbox."""
 
-    cloudinary_folder = f"AchievED-LMS/course_{course_id}/lesson_{lesson_id}"
-    cloudinary_file_path = f"{cloudinary_folder}/{filename}"
+    # Define Dropbox folder path
+    dropbox_folder = f"course_{course_id}/lesson_{lesson_id}"
 
-    print(f"Checking Cloudinary for: {cloudinary_file_path}")
+    # ✅ Get the file link from Dropbox
+    file_url = get_file_link(filename, folder=dropbox_folder)
 
-    try:
-        # Get the file URL from Cloudinary
-        resource = cloudinary.api.resource(cloudinary_file_path)
-        file_url = resource["secure_url"]
-        print(f"File found: {file_url}")
-
-        return jsonify({"message": "File available for download", "file_url": file_url})
-
-    except cloudinary.exceptions.NotFound:
-        print(f"ERROR: File not found on Cloudinary: {cloudinary_file_path}")
+    if not file_url:
         return jsonify({"error": "File not found"}), 404
+
+    return jsonify({"message": "File available for download", "file_url": file_url})
 
 #Fetch All Quizzes
 # --------------------------------------------------------------------------------
@@ -758,14 +729,10 @@ def get_assignments(lesson_id):
     assignments = Assignment.query.filter_by(lesson_id=lesson_id).all()
     return jsonify([assignment.to_dict() for assignment in assignments]), 200
 
-
-
 # Create a New Assignment
 @lecturer_bp.route("/assignments/new", methods=["POST"], endpoint="add_assignment")
 @login_required
 def create_assignment():
-    """Upload assignments to Cloudinary with correct filename and extension."""
-
     title = request.form.get("title")
     description = request.form.get("description")
     due_date = request.form.get("due_date")
@@ -775,43 +742,30 @@ def create_assignment():
         return jsonify({"error": "Title is required"}), 400
 
     file_url = None
-    cloudinary_public_id = None
 
     if file:
         try:
             filename = secure_filename(file.filename)
-            file_extension = os.path.splitext(filename)[1]  # Extract extension
+            file_extension = os.path.splitext(filename)[1]
 
             if not file_extension:
                 return jsonify({"error": "Invalid file format (no extension)"}), 400
 
-            # Ensure Cloudinary saves file with correct name and extension
-            upload_result = cloudinary.uploader.upload(
-                file,
-                folder="AchievED-LMS/assignments",
-                resource_type="raw",  # Support DOCX, PDF, ZIP
-                use_filename=True,  # Preserve original filename
-                unique_filename=False,  # Avoids random renaming
-                overwrite=True,  # Ensures correct file replacement
-                upload_preset="custom"  # ✅ Use the preset name
-            )
+            file_url = upload_file(file, filename, folder="assignments")
+            if not file_url:
+                return jsonify({"error": "File upload failed"}), 500
 
-            file_url = upload_result["secure_url"]
-            cloudinary_public_id = upload_result["public_id"]
-
-            print(f"✅ File uploaded successfully: {file_url}")
+            print(f" File uploaded successfully: {file_url}")
 
         except Exception as e:
-            print(f"❌ Error uploading file to Cloudinary: {e}")
+            print(f"Error uploading file to Dropbox: {e}")
             return jsonify({"error": "File upload failed"}), 500
 
-    # Save to database
     new_assignment = Assignment(
         title=title,
         description=description,
         due_date=due_date,
-        file_url=file_url,
-        cloudinary_public_id=cloudinary_public_id
+        file_url=file_url
     )
 
     db.session.add(new_assignment)
@@ -826,7 +780,7 @@ def create_assignment():
 #Edit assignment
 @lecturer_bp.route("/assignments/<int:assignment_id>", methods=["PUT"])
 @login_required
-def edit_assignment(assignment_id):
+def edit_assignment(assignment_id):    
     assignment = Assignment.query.get(assignment_id)
     if not assignment:
         return jsonify({"error": "Assignment not found"}), 404
@@ -853,29 +807,28 @@ def edit_assignment(assignment_id):
         assignment.due_date = due_date
         updated = True
 
-    # Handle File Upload & Replacement
+    # File Upload & Replacement
     if file:
+        filename = secure_filename(file.filename)
+
         if assignment.file_url:
             try:
-                public_id = assignment.file_url.split("/")[-1].split(".")[0]
-                cloudinary_folder = f"AchievED-LMS/assignments"
-                cloudinary_file_id = f"{cloudinary_folder}/{public_id}"
-
-                cloudinary.uploader.destroy(cloudinary_file_id)
-                print(f"Old file deleted from Cloudinary: {cloudinary_file_id}")
-
+                delete_file_from_dropbox(assignment.file_url) 
+                print(f" Old file deleted from Dropbox: {assignment.file_url}")
             except Exception as e:
-                print(f" Error deleting old file from Cloudinary: {e}")
+                print(f"Error deleting old file from Dropbox: {e}")
 
+        # Upload new file to Dropbox
         try:
-            cloudinary_folder = "AchievED-LMS/assignments"
-            upload_result = cloudinary.uploader.upload(file, folder=cloudinary_folder)
-            assignment.file_url = upload_result["secure_url"]
+            assignment.file_url = upload_file(file, filename, folder="assignments")
+            if not assignment.file_url:
+                return jsonify({"error": "File upload failed"}), 500
+
             print(f"New file uploaded successfully: {assignment.file_url}")
             updated = True
 
         except Exception as e:
-            print(f"Error uploading new file to Cloudinary: {e}")
+            print(f" Error uploading new file to Dropbox: {e}")
             return jsonify({"error": "File upload failed"}), 500
 
     if not updated:
@@ -888,25 +841,18 @@ def edit_assignment(assignment_id):
 #Delete an assignment
 @lecturer_bp.route("/assignments/<int:assignment_id>", methods=["DELETE"], endpoint="delete_assignment")
 @login_required
-def delete_assignment(assignment_id):
-    
+def delete_assignment(assignment_id):    
     assignment = Assignment.query.get(assignment_id)
     if not assignment:
         return jsonify({"error": "Assignment not found"}), 404
 
     if assignment.file_url:
         try:
-            public_id = assignment.file_url.split("/")[-1].split(".")[0]
-            cloudinary_folder = "AchievED-LMS/assignments"
-            cloudinary_file_id = f"{cloudinary_folder}/{public_id}"
+            delete_file_from_dropbox(assignment.file_url)
+            print(f" File deleted from Dropbox: {assignment.file_url}")
 
-            cloudinary.uploader.destroy(cloudinary_file_id)
-            print(f" File deleted from Cloudinary: {cloudinary_file_id}")
-
-        except cloudinary.exceptions.NotFound:
-            print(f" File not found in Cloudinary: {cloudinary_file_id}")
         except Exception as e:
-            print("f Error deleting file from Cloudinary: {e}")
+            print(f" Error deleting file from Dropbox: {e}")
 
     db.session.delete(assignment)
     db.session.commit()
@@ -916,17 +862,18 @@ def delete_assignment(assignment_id):
 #Download unassigned assignment route
 @lecturer_bp.route("/download/assignments/<path:filename>")
 def download_assignment(filename):
-    cloudinary_folder = "AchievED-LMS/assignments"
-    cloudinary_file_path = f"{cloudinary_folder}/{filename}"
-
-    print(f"🔍 Checking Cloudinary for: {cloudinary_file_path}")
+    dropbox_folder = "assignments"
 
     try:
-        resource = cloudinary.api.resource(cloudinary_file_path)
-        file_url = resource["secure_url"]
-        print(f"✅ File found: {file_url}")
-        return jsonify({"message": "File available for download", "file_url": file_url})
-    except cloudinary.exceptions.NotFound:
-        print(f"❌ ERROR: File not found on Cloudinary: {cloudinary_file_path}")
-        return jsonify({"error": "File not found"}), 404
+        file_url = get_file_link(filename, folder=dropbox_folder)
+        
+        if not file_url:
+            print(f" ERROR: File not found in Dropbox: {filename}")
+            return jsonify({"error": "File not found"}), 404
 
+        print(f" File found: {file_url}")
+        return jsonify({"message": "File available for download", "file_url": file_url})
+
+    except Exception as e:
+        print(f" ERROR retrieving file from Dropbox: {e}")
+        return jsonify({"error": "An unexpected error occurred"}), 500

@@ -5,19 +5,15 @@ import pymysql
 pymysql.install_as_MySQLdb()
 
 class Config:
-    """Base configuration (applies to all environments)"""
-    BASE_DIR = os.path.abspath(os.path.dirname(__file__))  # Get base directory
-    CLOUDINARY_UPLOAD_FOLDER = "AchievED-LMS"
-    ALLOWED_EXTENSIONS = {"pdf", "jpg", "png", "mp4", "zip", "txt", "docx"} 
-
-    # Ensure upload folder exists
-    if not os.path.exists(CLOUDINARY_UPLOAD_FOLDER):
-        os.makedirs(CLOUDINARY_UPLOAD_FOLDER)
-
-    SECRET_KEY = os.getenv('SECRET_KEY', 'change_this_secret_key')  # Use environment variable for security
+    SECRET_KEY = os.getenv('SECRET_KEY', 'change_this_secret_key')  
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    # Session Configuration
+    # Dropbox API Token (Set in Heroku)
+    DROPBOX_ACCESS_TOKEN = os.getenv("DROPBOX_ACCESS_TOKEN")
+
+    ALLOWED_EXTENSIONS = {"pdf", "jpg", "png", "mp4", "zip", "txt", "docx"}  
+
+    # Session Configuration (Keep the same)
     SESSION_TYPE = 'filesystem'  
     SESSION_PERMANENT = True
     SESSION_USE_SIGNER = True
@@ -26,7 +22,6 @@ class Config:
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = os.getenv("SESSION_COOKIE_SAMESITE", "Lax")
     PERMANENT_SESSION_LIFETIME = timedelta(days=1)
-
 
 class DevConfig(Config):
     """Development Configuration"""

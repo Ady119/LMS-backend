@@ -1,8 +1,6 @@
 import os
-import cloudinary.uploader
-import cloudinary.api
 from datetime import datetime
-
+from utils.dropbox_service import get_file_link, delete_file_from_dropbox, upload_file
 from werkzeug.utils import secure_filename, safe_join
 from flask import Blueprint, jsonify, g, request, current_app, send_from_directory, abort, send_file
 from sqlalchemy.orm import aliased, joinedload
@@ -182,18 +180,18 @@ def get_student_lesson_sections(course_id, lesson_id):
 
 
 #download endpoin
-import cloudinary.api
-from flask import jsonify
-
 @student_bp.route("/download/courses/<int:course_id>/lessons/<int:lesson_id>/<path:filename>")
 @login_required
 def download_student_file(course_id, lesson_id, filename):
+    """Generate a Dropbox temporary link for students to download lesson files."""
+
     if not hasattr(g, "user"):
         return jsonify({"error": "Unauthorized"}), 401
 
     student_id = g.user.get("user_id")
     print(f"Student ID: {student_id}")
 
+    # Check if student is enrolled in the course
     enrolled = db.session.query(Enrolment).join(
         Course, Enrolment.degree_id == Course.degree_id
     ).filter(
@@ -204,35 +202,22 @@ def download_student_file(course_id, lesson_id, filename):
     if not enrolled:
         return jsonify({"error": "Unauthorized or course not found"}), 403
 
-    cloudinary_folder = f"AchievED-LMS/course_{course_id}/lesson_{lesson_id}"
-
-  
-    public_id = filename 
-
-    print(f"Checking Cloudinary for: {cloudinary_folder}/{public_id}")
+    dropbox_folder = f"course_{course_id}/lesson_{lesson_id}"  # ✅ Adjusted for Dropbox storage structure
 
     try:
-        search_results = cloudinary.api.resources(
-            type="upload",
-            prefix=f"{cloudinary_folder}/{public_id}"
-        )
+        # Get Dropbox file link
+        file_url = get_file_link(filename, folder=dropbox_folder)
 
-        # Extract file URL
-        if search_results["resources"]:
-            file_url = search_results["resources"][0]["secure_url"]
-            print(f" File found: {file_url}")
+        if not file_url:
+            print(f"❌ ERROR: File not found in Dropbox: {filename}")
+            return jsonify({"error": "File not found"}), 404
 
-            return jsonify({"message": "File available for download", "file_url": file_url})
-        else:
-            raise cloudinary.exceptions.NotFound(f"File '{public_id}' not found in '{cloudinary_folder}'")
-
-    except cloudinary.exceptions.NotFound as e:
-        print(f" ERROR: {e}")
-        return jsonify({"error": "File not found"}), 404
+        print(f"✅ File found: {file_url}")
+        return jsonify({"message": "File available for download", "file_url": file_url})
 
     except Exception as e:
-        print(f" Unexpected error: {e}")
-        return jsonify({"error": "An error occurred while retrieving the file"}), 500
+        print(f"❌ ERROR retrieving file from Dropbox: {e}")
+        return jsonify({"error": "An unexpected error occurred"}), 500
 
 
 #                                                         QUIZZES 
@@ -600,30 +585,33 @@ def submit_assignment():
     filename = secure_filename(file.filename)
     unique_filename = f"{user_id}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{filename}"
 
-    cloudinary_folder = f"AchievED-LMS/assignments/course_{course_id}/lesson_{lesson_id}/assignment_{assignment.id}/student_{user_id}"
+    dropbox_folder = f"assignments/course_{course_id}/lesson_{lesson_id}/assignment_{assignment.id}/student_{user_id}"
 
+    # Check if an old submission exists
     old_submission = AssignmentSubmission.query.filter_by(assignment_id=assignment.id, student_id=user_id).first()
     
     if old_submission and old_submission.file_url:
         try:
-            public_id = old_submission.file_url.split("/")[-1].split(".")[0] 
-            cloudinary_file_id = f"{cloudinary_folder}/{public_id}"
-            cloudinary.uploader.destroy(cloudinary_file_id)
-            print(f"Old file deleted from Cloudinary: {cloudinary_file_id}")
+            # Delete previous submission from Dropbox
+            delete_file_from_dropbox(old_submission.file_url)
+            print(f" Old file deleted from Dropbox: {old_submission.file_url}")
 
         except Exception as e:
-            print(f" Error deleting old file from Cloudinary: {e}")
+            print(f" Error deleting old file from Dropbox: {e}")
 
     try:
-        upload_result = cloudinary.uploader.upload(file, folder=cloudinary_folder, public_id=unique_filename)
-        file_url = upload_result["secure_url"]
+        # Upload new file to Dropbox
+        file_url = upload_file(file, unique_filename, folder=dropbox_folder)
+
+        if not file_url:
+            return jsonify({"error": "File upload to Dropbox failed"}), 500
+
         print(f" File uploaded successfully: {file_url}")
 
         if old_submission:
             db.session.delete(old_submission)
             db.session.commit()
 
-        # Save new submission
         submission = AssignmentSubmission(
             assignment_id=assignment.id,
             student_id=user_id,
@@ -635,10 +623,8 @@ def submit_assignment():
         return jsonify({"message": "Assignment submitted successfully!", "file_url": file_url}), 201
 
     except Exception as e:
-        print(f" Error uploading to Cloudinary: {e}")
+        print(f" Error uploading to Dropbox: {e}")
         return jsonify({"error": "File upload failed"}), 500
-
-
 
 
 #fetch assihnment details
@@ -678,19 +664,13 @@ def delete_assignment_submission(submission_id):
 
     if submission.file_url:
         try:
-            public_id = submission.file_url.split("/")[-1].split(".")[0]
-            cloudinary_folder = "AchievED-LMS/assignments/submissions"
-            cloudinary_file_id = f"{cloudinary_folder}/{public_id}"
+            delete_file_from_dropbox(submission.file_url) 
+            print(f"File deleted from Dropbox: {submission.file_url}")
 
-            cloudinary.uploader.destroy(cloudinary_file_id)
-            print(f" File deleted from Cloudinary: {cloudinary_file_id}")
-
-        except cloudinary.exceptions.NotFound:
-            print(f" File not found in Cloudinary: {cloudinary_file_id}")
         except Exception as e:
-            print(f" Error deleting file from Cloudinary: {e}")
+            print(f" Error deleting file from Dropbox: {e}")
+            return jsonify({"error": "Failed to delete file from Dropbox"}), 500
 
-    # Remove submission from DB
     db.session.delete(submission)
     db.session.commit()
 
@@ -701,25 +681,25 @@ def delete_assignment_submission(submission_id):
 @login_required
 def download_assignment_submission(assignment_id, submission_id):    
     user_id = g.user.get("user_id")
-    user_role = g.user.get("role")  # Get user role (student or lecturer)
+    user_role = g.user.get("role") 
 
     submission = AssignmentSubmission.query.filter_by(id=submission_id, assignment_id=assignment_id).first()
 
     if not submission:
-        print(f"Submission not found: {submission_id}")
+        print(f" Submission not found: {submission_id}")
         return jsonify({"error": "File not found"}), 404
 
     if submission.student_id != user_id and user_role != "lecturer":
-        print(f"Unauthorized download attempt by User {user_id} (Role: {user_role}) for Submission {submission_id}")
+        print(f" Unauthorized download attempt by User {user_id} (Role: {user_role}) for Submission {submission_id}")
         return jsonify({"error": "Unauthorized"}), 403
 
-    file_url = submission.file_url
+    file_url = get_file_link(submission.file_url)
 
     if not file_url:
-        print(f" File URL missing for Submission {submission_id}")
+        print(f" File not found in Dropbox for Submission {submission_id}")
         return jsonify({"error": "File not found"}), 404
 
-    print(f"User {user_id} (Role: {user_role}) is downloading: {file_url}")
+    print(f" User {user_id} (Role: {user_role}) is downloading: {file_url}")
 
     return jsonify({"message": "File available for download", "file_url": file_url})
 
