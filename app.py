@@ -25,8 +25,8 @@ env = os.environ.get("FLASK_ENV", "production")
 app.config.from_object(config_dict[env])
 
 # Ensure Upload Folder Exists
-if not os.path.exists(app.config["UPLOAD_FOLDER"]):
-    os.makedirs(app.config["UPLOAD_FOLDER"])
+if not os.path.exists(app.config["CLOUDINARY_UPLOAD_FOLDER"]):
+    os.makedirs(app.config["CLOUDINARY_UPLOAD_FOLDER"])
 
 
 CORS(app, resources={r"/*": {"origins": "https://lms-frontend-henna-sigma.vercel.app", "supports_credentials": True}})

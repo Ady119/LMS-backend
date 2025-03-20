@@ -1,17 +1,18 @@
 import os
 from datetime import timedelta
+from urllib.parse import urlparse
 import pymysql
 pymysql.install_as_MySQLdb()
 
 class Config:
     """Base configuration (applies to all environments)"""
     BASE_DIR = os.path.abspath(os.path.dirname(__file__))  # Get base directory
-    UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads") 
+    CLOUDINARY_UPLOAD_FOLDER = "AchievED-LMS"
     ALLOWED_EXTENSIONS = {"pdf", "jpg", "png", "mp4", "zip", "txt", "docx"} 
 
     # Ensure upload folder exists
-    if not os.path.exists(UPLOAD_FOLDER):
-        os.makedirs(UPLOAD_FOLDER)
+    if not os.path.exists(CLOUDINARY_UPLOAD_FOLDER):
+        os.makedirs(CLOUDINARY_UPLOAD_FOLDER)
 
     SECRET_KEY = os.getenv('SECRET_KEY', 'change_this_secret_key')  # Use environment variable for security
     SQLALCHEMY_TRACK_MODIFICATIONS = False
@@ -45,16 +46,18 @@ class ProdConfig(Config):
     """Production Configuration (for Heroku deployment)"""
     DEBUG = False
 
-    # Get database URL from environment variable (Heroku provides this)
     raw_db_url = os.getenv('DATABASE_URL')
 
-    # If it's a MySQL connection (Heroku provides JAWSDB_URL), convert it to pymysql
     if raw_db_url:
+        # Ensure correct format for MySQL on Heroku
         if raw_db_url.startswith("mysql://"):
             raw_db_url = raw_db_url.replace("mysql://", "mysql+pymysql://", 1)
-        SQLALCHEMY_DATABASE_URI = raw_db_url
+        
+        # Parse and reconstruct database URL to prevent errors
+        parsed_url = urlparse(raw_db_url)
+        SQLALCHEMY_DATABASE_URI = f"{parsed_url.scheme}://{parsed_url.netloc}{parsed_url.path}"
     else:
-        SQLALCHEMY_DATABASE_URI = os.getenv('JAWSDB_URL')
+        SQLALCHEMY_DATABASE_URI = os.getenv('JAWSDB_URL', 'sqlite:///:memory:')
 
 
 # Auto-detect environment based on the FLASK_ENV environment variable

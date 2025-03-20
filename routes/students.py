@@ -1,9 +1,12 @@
 import os
-from werkzeug.utils import secure_filename
-import os
+import cloudinary.uploader
+import cloudinary.api
 from datetime import datetime
+
 from werkzeug.utils import secure_filename, safe_join
 from flask import Blueprint, jsonify, g, request, current_app, send_from_directory, abort, send_file
+from sqlalchemy.orm import aliased, joinedload
+
 from urllib.parse import unquote
 from utils.tokens import get_jwt_token, decode_jwt
 from utils.utils import login_required
@@ -11,6 +14,7 @@ from models.users import User, db
 from models.courses import Course
 from models.course_lessons import Lesson
 from models.lesson_section import LessonSection
+from models.assignment import Assignment
 from models.quizzes import Quiz
 from models.multiple_choice import MultipleChoiceQuestion
 from models.short_quiz import ShortAnswerQuestion  
@@ -18,16 +22,13 @@ from models.quiz_attempts import QuizAttempt
 from models.quiz_attempts_answers import QuizAttemptAnswer
 from models.quiz_results import QuizResult
 from models.enrolments import Enrolment
-from models.assignment import Assignment
-
 from models.assignment_submission import AssignmentSubmission
-from sqlalchemy.orm import aliased, joinedload
 
 # Lecturers' blueprint
 student_bp = Blueprint("student", __name__)
 
 def get_upload_folder():
-    return current_app.config["UPLOAD_FOLDER"]
+    return current_app.config.get["CLOUDINARY_UPLOAD_FOLDER", "AvhievED-LMS"]
 
 
 @student_bp.after_request
@@ -180,20 +181,19 @@ def get_student_lesson_sections(course_id, lesson_id):
     return jsonify(lesson_data), 200
 
 
+#download endpoin
+import cloudinary.api
+from flask import jsonify
 
 @student_bp.route("/download/courses/<int:course_id>/lessons/<int:lesson_id>/<path:filename>")
 @login_required
 def download_student_file(course_id, lesson_id, filename):
-    """Serve a file for download only if the student is enrolled."""
-    
-    #  Ensure g.user exists
     if not hasattr(g, "user"):
         return jsonify({"error": "Unauthorized"}), 401
 
     student_id = g.user.get("user_id")
-    print(f"🔍 Student ID: {student_id}")
+    print(f"Student ID: {student_id}")
 
-    #  Ensure student is enrolled in the course
     enrolled = db.session.query(Enrolment).join(
         Course, Enrolment.degree_id == Course.degree_id
     ).filter(
@@ -204,31 +204,35 @@ def download_student_file(course_id, lesson_id, filename):
     if not enrolled:
         return jsonify({"error": "Unauthorized or course not found"}), 403
 
-    upload_folder = get_upload_folder()
-    file_directory = os.path.abspath(os.path.join(upload_folder, f"course/{course_id}/lesson/{lesson_id}"))
-    file_path = os.path.abspath(os.path.join(file_directory, filename))
+    cloudinary_folder = f"AchievED-LMS/course_{course_id}/lesson_{lesson_id}"
 
-    print(f"Flask is trying to serve file from: {file_path}")
+  
+    public_id = filename 
 
-    # Debugging: Check if the directory exists
-    if os.path.exists(file_directory):
-        print(f"Files inside: {os.listdir(file_directory)}")
-    else:
-        print(f"ERROR: Directory {file_directory} does not exist!")
+    print(f"Checking Cloudinary for: {cloudinary_folder}/{public_id}")
 
-    # Check if the requested file exists
-    if os.path.exists(file_path):
-        print(f"FILE FOUND! Downloading: {file_path}")
-        return send_file(file_path, as_attachment=True)
-    else:
-        print(f"ERROR: File NOT found at {file_path}")
+    try:
+        search_results = cloudinary.api.resources(
+            type="upload",
+            prefix=f"{cloudinary_folder}/{public_id}"
+        )
 
-        lowercase_files = [f.lower() for f in os.listdir(file_directory)]
-        if filename.lower() in lowercase_files:
-            print("WARNING: Filename case mismatch! Try renaming the file.")
+        # Extract file URL
+        if search_results["resources"]:
+            file_url = search_results["resources"][0]["secure_url"]
+            print(f" File found: {file_url}")
 
-        abort(404, description=f"File not found at {file_path}")
+            return jsonify({"message": "File available for download", "file_url": file_url})
+        else:
+            raise cloudinary.exceptions.NotFound(f"File '{public_id}' not found in '{cloudinary_folder}'")
 
+    except cloudinary.exceptions.NotFound as e:
+        print(f" ERROR: {e}")
+        return jsonify({"error": "File not found"}), 404
+
+    except Exception as e:
+        print(f" Unexpected error: {e}")
+        return jsonify({"error": "An error occurred while retrieving the file"}), 500
 
 
 #                                                         QUIZZES 
@@ -582,12 +586,10 @@ def submit_assignment():
     if not file:
         return jsonify({"error": "Invalid file"}), 400
 
-    # Validate assignment ID
     assignment = Assignment.query.get(assignment_id)
     if not assignment:
         return jsonify({"error": "Invalid assignment ID"}), 400
 
-    # Fetch course_id and lesson_id from LessonSection
     lesson_section = LessonSection.query.filter_by(assignment_id=assignment.id).first()
     if not lesson_section:
         return jsonify({"error": "Assignment is not linked to a lesson"}), 400
@@ -595,45 +597,48 @@ def submit_assignment():
     course_id = lesson_section.lesson.course_id
     lesson_id = lesson_section.lesson_id
 
-    upload_root = get_upload_folder()
+    filename = secure_filename(file.filename)
+    unique_filename = f"{user_id}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{filename}"
 
-    # structured folder inside "uploads/"
-    relative_folder_path = os.path.join(
-        "assignments", 
-        f"course_{course_id}", 
-        f"lesson_{lesson_id}", 
-        f"assignment_{assignment.id}", 
-        f"student_{user_id}"
-    )
-    
-    absolute_folder_path = os.path.join(upload_root, relative_folder_path)
-    os.makedirs(absolute_folder_path, exist_ok=True)
+    cloudinary_folder = f"AchievED-LMS/assignments/course_{course_id}/lesson_{lesson_id}/assignment_{assignment.id}/student_{user_id}"
 
-    # Check if an existing submission exists and delete the old file
     old_submission = AssignmentSubmission.query.filter_by(assignment_id=assignment.id, student_id=user_id).first()
-    if old_submission:
-        old_file_path = os.path.join(upload_root, old_submission.file_url)
-        if os.path.exists(old_file_path):
-            os.remove(old_file_path)
+    
+    if old_submission and old_submission.file_url:
+        try:
+            public_id = old_submission.file_url.split("/")[-1].split(".")[0] 
+            cloudinary_file_id = f"{cloudinary_folder}/{public_id}"
+            cloudinary.uploader.destroy(cloudinary_file_id)
+            print(f"Old file deleted from Cloudinary: {cloudinary_file_id}")
 
-        db.session.delete(old_submission)
+        except Exception as e:
+            print(f" Error deleting old file from Cloudinary: {e}")
+
+    try:
+        upload_result = cloudinary.uploader.upload(file, folder=cloudinary_folder, public_id=unique_filename)
+        file_url = upload_result["secure_url"]
+        print(f" File uploaded successfully: {file_url}")
+
+        if old_submission:
+            db.session.delete(old_submission)
+            db.session.commit()
+
+        # Save new submission
+        submission = AssignmentSubmission(
+            assignment_id=assignment.id,
+            student_id=user_id,
+            file_url=file_url
+        )
+        db.session.add(submission)
         db.session.commit()
 
-    filename = secure_filename(file.filename)
-    file_path = os.path.join(absolute_folder_path, filename)
-    file.save(file_path)
+        return jsonify({"message": "Assignment submitted successfully!", "file_url": file_url}), 201
 
-    relative_file_path = os.path.join(relative_folder_path, filename)
+    except Exception as e:
+        print(f" Error uploading to Cloudinary: {e}")
+        return jsonify({"error": "File upload failed"}), 500
 
-    submission = AssignmentSubmission(
-        assignment_id=assignment.id,
-        student_id=user_id,
-        file_url=relative_file_path
-    )
-    db.session.add(submission)
-    db.session.commit()
 
-    return jsonify({"message": "Assignment submitted successfully!", "file_url": relative_file_path}), 201
 
 
 #fetch assihnment details
@@ -653,7 +658,6 @@ def get_assignment_details(assignment_id):
 def get_assignment_submissions(assignment_id):
     user_id = g.user.get("user_id")
 
-    # Get all submissions for this student and assignment
     submissions = AssignmentSubmission.query.filter_by(assignment_id=assignment_id, student_id=user_id).all()
 
     if not submissions:
@@ -672,11 +676,21 @@ def delete_assignment_submission(submission_id):
     if not submission:
         return jsonify({"error": "Submission not found or unauthorized"}), 404
 
-    # Delete the file from the server
-    file_path = os.path.join(get_upload_folder(), submission.file_url)
-    if os.path.exists(file_path):
-        os.remove(file_path)
+    if submission.file_url:
+        try:
+            public_id = submission.file_url.split("/")[-1].split(".")[0]
+            cloudinary_folder = "AchievED-LMS/assignments/submissions"
+            cloudinary_file_id = f"{cloudinary_folder}/{public_id}"
 
+            cloudinary.uploader.destroy(cloudinary_file_id)
+            print(f" File deleted from Cloudinary: {cloudinary_file_id}")
+
+        except cloudinary.exceptions.NotFound:
+            print(f" File not found in Cloudinary: {cloudinary_file_id}")
+        except Exception as e:
+            print(f" Error deleting file from Cloudinary: {e}")
+
+    # Remove submission from DB
     db.session.delete(submission)
     db.session.commit()
 
@@ -685,13 +699,27 @@ def delete_assignment_submission(submission_id):
 #assignment file download
 @student_bp.route("/assignments/<int:assignment_id>/submissions/<int:submission_id>/download", methods=["GET"])
 @login_required
-def download_assignment_submission(assignment_id, submission_id):
+def download_assignment_submission(assignment_id, submission_id):    
+    user_id = g.user.get("user_id")
+    user_role = g.user.get("role")  # Get user role (student or lecturer)
+
     submission = AssignmentSubmission.query.filter_by(id=submission_id, assignment_id=assignment_id).first()
-    
+
     if not submission:
+        print(f"Submission not found: {submission_id}")
         return jsonify({"error": "File not found"}), 404
-    
-    file_path = submission.file_url
-    directory, filename = os.path.split(file_path)
-    
-    return send_from_directory(directory, filename, as_attachment=True)
+
+    if submission.student_id != user_id and user_role != "lecturer":
+        print(f"Unauthorized download attempt by User {user_id} (Role: {user_role}) for Submission {submission_id}")
+        return jsonify({"error": "Unauthorized"}), 403
+
+    file_url = submission.file_url
+
+    if not file_url:
+        print(f" File URL missing for Submission {submission_id}")
+        return jsonify({"error": "File not found"}), 404
+
+    print(f"User {user_id} (Role: {user_role}) is downloading: {file_url}")
+
+    return jsonify({"message": "File available for download", "file_url": file_url})
+
