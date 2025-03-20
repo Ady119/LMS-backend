@@ -57,7 +57,7 @@ def login():
         "access_token", token, 
         httponly=True, 
         secure=True,
-        samesite="Lax",
+        samesite="None",
         path="/",
         partitioned=True,
         max_age=86400
