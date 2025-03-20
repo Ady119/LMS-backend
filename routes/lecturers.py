@@ -240,10 +240,6 @@ def get_lesson_details(course_id, lesson_id):
     return jsonify(lesson_data), 200
 
 
-import os
-import cloudinary.uploader
-from werkzeug.utils import secure_filename
-
 ALLOWED_EXTENSIONS = {"pdf", "jpg", "png", "mp4", "zip", "txt", "docx"}
 
 def allowed_file(filename):
@@ -765,15 +761,23 @@ def get_assignments(lesson_id):
 
 
 # Create a New Assignment
+import os
+import uuid
+from werkzeug.utils import secure_filename
+from flask import jsonify, request
+import cloudinary.uploader
+from models import db, Assignment
+from flask_login import login_required
+
 @lecturer_bp.route("/assignments/new", methods=["POST"], endpoint="add_assignment")
 @login_required
 def create_assignment():
-    """Create a new assignment and upload the file to Cloudinary with overwrite handling."""
+    """Create a new assignment and upload the file to Cloudinary with correct filename handling."""
 
     title = request.form.get("title")
     description = request.form.get("description")
     due_date = request.form.get("due_date")
-    file = request.files.get("file") 
+    file = request.files.get("file")
 
     if not title:
         return jsonify({"error": "Title is required"}), 400
@@ -781,32 +785,33 @@ def create_assignment():
     file_url = None
     cloudinary_public_id = None
 
-    # Handle file upload
     if file:
         try:
             filename = secure_filename(file.filename)
-            file_extension = os.path.splitext(filename)[1]  # Extract extension
+            file_extension = os.path.splitext(filename)[1]  # Extract extension (e.g., ".docx")
             
-            # Define Cloudinary folder path
-            cloudinary_folder = "AchievED-LMS/assignments"
+            if not file_extension:
+                return jsonify({"error": "Invalid file format (no extension)"}), 400
 
-            # Generate a unique filename (to prevent overwrites)
-            unique_filename = f"{uuid.uuid4()}{file_extension}"  # Example:  "c5f3b8d1.docx"
+            # Generate a unique filename while preserving extension
+            unique_filename = f"{uuid.uuid4()}{file_extension}"
 
-            # Upload file
+            # Upload to Cloudinary
             upload_result = cloudinary.uploader.upload(
-                file, 
-                folder=cloudinary_folder,
-                resource_type="raw",  # Ensures support for DOCX, PDF, ZIP, etc.
-                use_filename=True,  # Keep filename
-                unique_filename=True  # Prevents unintentional file overwrites
+                file,
+                folder="AchievED-LMS/assignments",
+                resource_type="raw",  # Support DOCX, PDFs, ZIPs, etc.
+                public_id=unique_filename,  # Force unique filename with extension
+                overwrite=True  # Allow file updates without breaking references
             )
 
-            file_url = upload_result["secure_url"]  # Store URL for retrieval
-            cloudinary_public_id = upload_result["public_id"]  # ✅ Store ID for deletion/replacement
+            file_url = upload_result["secure_url"]
+            cloudinary_public_id = upload_result["public_id"]  # ✅ Store for later retrieval/deletion
+
+            print(f"✅ File uploaded successfully: {file_url}")
 
         except Exception as e:
-            print(f"Error uploading file to Cloudinary: {e}")
+            print(f"❌ Error uploading file to Cloudinary: {e}")
             return jsonify({"error": "File upload failed"}), 500
 
     # Save to DB
@@ -815,7 +820,7 @@ def create_assignment():
         description=description,
         due_date=due_date,
         file_url=file_url,
-        cloudinary_public_id=cloudinary_public_id  # ✅ Now saved for precise deletion/replacement
+        cloudinary_public_id=cloudinary_public_id
     )
 
     db.session.add(new_assignment)
@@ -825,6 +830,7 @@ def create_assignment():
         "message": "Assignment created successfully",
         "assignment": new_assignment.to_dict()
     }), 201
+
 
 
 #Edit assignment
