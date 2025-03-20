@@ -239,22 +239,25 @@ def get_lesson_details(course_id, lesson_id):
     return jsonify(lesson_data), 200
 
 
+import os
+import cloudinary.uploader
+from werkzeug.utils import secure_filename
+
 ALLOWED_EXTENSIONS = {"pdf", "jpg", "png", "mp4", "zip", "txt", "docx"}
 
-# Check if the file extension is valid
 def allowed_file(filename):
     """Check if file has a valid extension."""
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def save_uploaded_file(file, course_id=None, lesson_id=None, is_assignment=False):
-    """Securely uploads files to Cloudinary, ensuring correct file format."""
+    """Uploads files to Cloudinary while ensuring filenames and extensions are preserved."""
 
     if not file or not allowed_file(file.filename):
         return None, "Invalid file type"
 
-    # Ensure filename is safe
+    # Secure filename and extract extension
     filename = secure_filename(file.filename.replace(" ", "_"))
-    file_extension = os.path.splitext(filename)[1]
+    file_extension = os.path.splitext(filename)[1]  # Extract `.pdf`, `.png`, etc.
 
     if is_assignment:
         cloudinary_folder = "AchievED-LMS/assignments"
@@ -264,22 +267,27 @@ def save_uploaded_file(file, course_id=None, lesson_id=None, is_assignment=False
         cloudinary_folder = f"AchievED-LMS/course_{course_id}/lesson_{lesson_id}"
 
     try:
+        # Ensure public_id keeps the filename with the extension
+        public_id = f"{cloudinary_folder}/{os.path.splitext(filename)[0]}"  # Remove extension
+
         upload_result = cloudinary.uploader.upload(
-        file,
-        folder="AchievED-LMS/assignments",
-        resource_type="auto",  # Automatically detects file type (image, raw, video, etc.)
-        use_filename=True,      # Keep original filename
-        unique_filename=False   # Prevents renaming files randomly
-    )
+            file,
+            folder=cloudinary_folder,
+            resource_type="auto",  # Automatically detects file type
+            use_filename=True,
+            unique_filename=False,  # Ensures filename consistency
+            public_id=public_id + file_extension  # Append extension to prevent stripping
+        )
 
         file_url = upload_result["secure_url"]
-        print(f"File uploaded successfully: {file_url}")
+        print(f"✅ File uploaded successfully: {file_url} | Public ID: {upload_result['public_id']}")
 
         return file_url, None 
 
     except Exception as e:
-        print(f"Error uploading to Cloudinary: {e}")
+        print(f"❌ Error uploading to Cloudinary: {e}")
         return None, "Upload failed"
+
 
 
 #                          **Upload a New Section (Handles File Upload)**
@@ -893,19 +901,19 @@ def delete_assignment(assignment_id):
     return jsonify({"message": "Assignment deleted successfully"}), 200
 
 #Download unassigned assignment route
-@lecturer_bp.route("/download/assignments/<int:assignment_id>")
-def download_assignment(assignment_id):
-    """Retrieve the file URL for an assignment from Cloudinary."""
+@lecturer_bp.route("/download/assignments/<path:filename>")
+def download_assignment(filename):
+    cloudinary_folder = "AchievED-LMS/assignments"
+    cloudinary_file_path = f"{cloudinary_folder}/{filename}"
 
-    assignment = Assignment.query.get(assignment_id)
-
-    if not assignment or not assignment.cloudinary_public_id:
-        return jsonify({"error": "File not found"}), 404
+    print(f"🔍 Checking Cloudinary for: {cloudinary_file_path}")
 
     try:
-        resource = cloudinary.api.resource(assignment.cloudinary_public_id)
-        return jsonify({"message": "File available for download", "file_url": resource["secure_url"]})
-
+        resource = cloudinary.api.resource(cloudinary_file_path)
+        file_url = resource["secure_url"]
+        print(f"✅ File found: {file_url}")
+        return jsonify({"message": "File available for download", "file_url": file_url})
     except cloudinary.exceptions.NotFound:
+        print(f"❌ ERROR: File not found on Cloudinary: {cloudinary_file_path}")
         return jsonify({"error": "File not found"}), 404
 
