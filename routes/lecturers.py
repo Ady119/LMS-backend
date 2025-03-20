@@ -179,26 +179,21 @@ def delete_lesson(course_id, lesson_id):
 @lecturer_bp.route('/courses/<int:course_id>/lessons/<int:lesson_id>/sections/<int:section_id>', methods=['DELETE'])
 @login_required
 def delete_section(course_id, lesson_id, section_id):
-    """Deletes a lesson section and removes any associated file from Cloudinary."""
+    """Deletes a lesson section and removes any associated file from Dropbox."""
     
     section = LessonSection.query.filter_by(id=section_id, lesson_id=lesson_id).first()
 
     if not section:
         return jsonify({"error": "Section not found"}), 404
 
-    # Delete file from Cloudinary if it exists
+    # Delete file from Dropbox if it exists
     if section.file_url:
         try:
-            public_id = section.file_url.split("/")[-1].split(".")[0]
-            cloudinary_folder = f"AchievED-LMS/course_{course_id}/lesson_{lesson_id}/section_{section_id}"
-
-            cloudinary_file_id = f"{cloudinary_folder}/{public_id}"
-
-            result = cloudinary.uploader.destroy(cloudinary_file_id)
-            print(f"Cloudinary file deleted: {result}")
+            delete_file_from_dropbox(section.file_url)
+            print(f" File deleted from Dropbox: {section.file_url}")
 
         except Exception as e:
-            print(f"Error deleting file from Cloudinary: {e}")
+            print(f" Error deleting file from Dropbox: {e}")
 
     db.session.delete(section)
     db.session.commit()
