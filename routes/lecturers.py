@@ -765,7 +765,11 @@ def create_assignment():
 
     if file:
         try:
-            upload_result = cloudinary.uploader.upload(file, folder="AchievED-LMS/assignments")
+            upload_result = cloudinary.uploader.upload(
+                file, 
+                folder="AchievED-LMS/assignments",
+                resource_type="raw"  # Ensure DOCX, PDF, ZIP, etc. are supported
+            )
             file_url = upload_result["secure_url"]
             print(f"File uploaded successfully: {file_url}")
 
