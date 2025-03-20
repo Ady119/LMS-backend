@@ -52,7 +52,7 @@ def login():
             "email": user.email
         }
     }))
-    
+    print(f"Setting cookie: {token}")  # Add this line
     response.set_cookie(
         "access_token", token, 
         httponly=True, 
