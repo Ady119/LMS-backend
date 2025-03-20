@@ -770,29 +770,28 @@ def create_assignment():
         return jsonify({"error": "Title is required"}), 400
 
     file_url = None
-    public_id = None  # Store public_id
+    cloudinary_public_id = None
 
     if file:
         try:
             upload_result = cloudinary.uploader.upload(
                 file, 
                 folder="AchievED-LMS/assignments",
-                resource_type="auto"  
+                resource_type="raw"  # Ensures support for DOCX, PDF, ZIP, etc.
             )
             file_url = upload_result["secure_url"]
-            public_id = upload_result["public_id"]  # Get public_id from Cloudinary
-            print(f"✅ File uploaded successfully: {file_url} | Public ID: {public_id}")
+            cloudinary_public_id = upload_result["public_id"]  # ✅ Store this
 
         except Exception as e:
-            print(f"❌ Error uploading file to Cloudinary: {e}")
+            print(f"Error uploading file to Cloudinary: {e}")
             return jsonify({"error": "File upload failed"}), 500
 
-    # Save both `file_url` and `public_id` in the database
     new_assignment = Assignment(
         title=title,
         description=description,
         due_date=due_date,
-        file_url=file_url,  # Keep the secure URL
+        file_url=file_url,
+        cloudinary_public_id=cloudinary_public_id  # ✅ Now saved in DB
     )
 
     db.session.add(new_assignment)
