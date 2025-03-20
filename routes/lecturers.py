@@ -1,11 +1,11 @@
 import os
-from werkzeug.utils import secure_filename
-import os
+import bleach
 from werkzeug.utils import secure_filename, safe_join
 from flask import Blueprint, jsonify, g, request, current_app, send_from_directory, abort
 from urllib.parse import unquote
 from utils.tokens import get_jwt_token, decode_jwt
 from utils.utils import login_required
+
 from models.users import User, db
 from models.courses import Course
 from models.course_lecturers import CourseLecturer
@@ -14,9 +14,7 @@ from models.lesson_section import LessonSection
 from models.quizzes import Quiz
 from models.multiple_choice import MultipleChoiceQuestion
 from models.short_quiz import ShortAnswerQuestion  
-
 from models.assignment import Assignment
-from sqlalchemy.orm import aliased
 
 # Lecturers' blueprint
 lecturer_bp = Blueprint("lecturer", __name__)
@@ -45,7 +43,7 @@ def add_cors_headers(response):
 def get_my_courses():
     lecturer_id = g.user.get("user_id")
 
-    print(f"🔍 Lecturer ID: {lecturer_id}")  # ✅ Check if user ID is correct
+    print(f"🔍 Lecturer ID: {lecturer_id}")
 
     if not lecturer_id:
         return jsonify({"error": "Invalid token"}), 401
@@ -54,8 +52,6 @@ def get_my_courses():
         Course.id, Course.title, Course.description
     ).join(CourseLecturer, Course.id == CourseLecturer.course_id
     ).filter(CourseLecturer.lecturer_id == lecturer_id).all()
-
-    print(f"🔍 Courses Found: {courses}")  # ✅ Debugging
 
     courses_list = [{"id": c.id, "title": c.title, "description": c.description} for c in courses]
 
@@ -290,11 +286,11 @@ def save_uploaded_file(file, course_id=None, lesson_id=None, is_assignment=False
 @lecturer_bp.route("/courses/<int:course_id>/lessons/<int:lesson_id>/sections", methods=["POST"])
 @login_required
 def add_section(course_id, lesson_id):
-    """Add a new section to a lesson, linking an existing assignment or quiz if provided."""
+    """Add a new section to a lesson, allowing rich text content via Quill."""
 
     title = request.form.get("title")
     content_type = request.form.get("content_type")
-    text_content = request.form.get("text_content")
+    text_content = request.form.get("text_content", "").strip()
     file = request.files.get("file")
     assignment_id = request.form.get("assignment_id")
     quiz_id = request.form.get("quiz_id")
@@ -302,7 +298,6 @@ def add_section(course_id, lesson_id):
     if not title or not content_type:
         return jsonify({"error": "Title and content type are required"}), 400
 
-    # Ensure only one type of linked content
     if assignment_id and quiz_id:
         return jsonify({"error": "Cannot assign both quiz and assignment to the same section"}), 400
 
@@ -311,6 +306,10 @@ def add_section(course_id, lesson_id):
         saved_file_path, error = save_uploaded_file(file, course_id, lesson_id)
         if error:
             return jsonify({"error": error}), 400
+
+    # Sanitize rich text input
+    allowed_tags = ["b", "i", "u", "strong", "em", "p", "br", "ul", "ol", "li", "a", "blockquote", "h1", "h2", "h3"]
+    text_content = bleach.clean(text_content, tags=allowed_tags, strip=True)
 
     new_section = LessonSection(
         lesson_id=lesson_id,
