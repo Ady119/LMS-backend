@@ -11,7 +11,6 @@ from routes.authentication import auth_bp
 from routes.super_admin import admin_bp
 from routes.lecturers import lecturer_bp
 from routes.students import student_bp
-from dropbox_service import dropbox_client  # ✅ Import Dropbox client
 
 load_dotenv()
 
