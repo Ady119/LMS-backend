@@ -759,6 +759,8 @@ def get_assignments(lesson_id):
 @lecturer_bp.route("/assignments/new", methods=["POST"], endpoint="add_assignment")
 @login_required
 def create_assignment():
+    """Create a new assignment and upload the file to Cloudinary."""
+
     title = request.form.get("title")
     description = request.form.get("description")
     due_date = request.form.get("due_date")
@@ -768,26 +770,30 @@ def create_assignment():
         return jsonify({"error": "Title is required"}), 400
 
     file_url = None
+    public_id = None  # Store public_id
 
     if file:
         try:
             upload_result = cloudinary.uploader.upload(
                 file, 
                 folder="AchievED-LMS/assignments",
-                resource_type="auto"
+                resource_type="auto"  
             )
             file_url = upload_result["secure_url"]
-            print(f"File uploaded successfully: {file_url}")
+            public_id = upload_result["public_id"]  # Get public_id from Cloudinary
+            print(f"✅ File uploaded successfully: {file_url} | Public ID: {public_id}")
 
         except Exception as e:
-            print(f" Error uploading file to Cloudinary: {e}")
+            print(f"❌ Error uploading file to Cloudinary: {e}")
             return jsonify({"error": "File upload failed"}), 500
 
+    # Save both `file_url` and `public_id` in the database
     new_assignment = Assignment(
         title=title,
         description=description,
         due_date=due_date,
-        file_url=file_url
+        file_url=file_url,  # Keep the secure URL
+        cloudinary_public_id=public_id  # Store public_id for retrieval
     )
 
     db.session.add(new_assignment)
@@ -797,7 +803,6 @@ def create_assignment():
         "message": "Assignment created successfully",
         "assignment": new_assignment.to_dict()
     }), 201
-
 
 #Edit assignment
 @lecturer_bp.route("/assignments/<int:assignment_id>", methods=["PUT"])
@@ -890,21 +895,21 @@ def delete_assignment(assignment_id):
     return jsonify({"message": "Assignment deleted successfully"}), 200
 
 #Download unassigned assignment route
-@lecturer_bp.route("/download/assignments/<path:filename>")
-def download_assignment(filename):
+@lecturer_bp.route("/download/assignments/<string:assignment_id>")
+def download_assignment(assignment_id):
+    """Fetch the file URL from Cloudinary using public_id instead of filename."""
 
-    cloudinary_folder = "AchievED-LMS/assignments"
-    cloudinary_file_path = f"{cloudinary_folder}/{filename}"
-
-    print(f"Checking Cloudinary for: {cloudinary_file_path}")
+    assignment = Assignment.query.get(assignment_id)
+    if not assignment or not assignment.cloudinary_public_id:
+        return jsonify({"error": "File not found"}), 404
 
     try:
-        resource = cloudinary.api.resource(cloudinary_file_path)
+        resource = cloudinary.api.resource(assignment.cloudinary_public_id)  # Use public_id
         file_url = resource["secure_url"]
-        print(f"File found: {file_url}")
+        print(f"✅ File found: {file_url}")
 
         return jsonify({"message": "File available for download", "file_url": file_url})
 
     except cloudinary.exceptions.NotFound:
-        print(f" ERROR: File not found on Cloudinary: {cloudinary_file_path}")
+        print(f"❌ ERROR: File not found on Cloudinary: {assignment.cloudinary_public_id}")
         return jsonify({"error": "File not found"}), 404
