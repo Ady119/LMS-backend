@@ -118,25 +118,35 @@ def register():
 
 @auth_bp.route('/check-auth', methods=['GET'])
 def check_auth():
+    # Get the access_token from the cookies
     token = request.cookies.get("access_token")
-
+    
+    # If there's no token, return an error message
     if not token:
         return jsonify({"error": "Not authenticated"}), 401
 
-    decoded_token = decode_jwt(token)
+    try:
+        # Try to decode the JWT token
+        decoded_token = decode_jwt(token)
+        
+        # If decoding fails, it will raise an exception, so we return an error
+        if not decoded_token:
+            return jsonify({"error": "Invalid or expired token"}), 401
 
-    if not decoded_token:
+        print("Decoded JWT:", decoded_token)
+
+        # Return user details if authenticated successfully
+        return jsonify({
+            "message": "Authenticated",
+            "user": {
+                "id": decoded_token.get("user_id"),
+                "role": decoded_token.get("role"),
+                "username_or_email": decoded_token.get("username_or_email"),
+                "institution_id": decoded_token.get("institution_id")
+            }
+        }), 200
+    except Exception as e:
+        # Catch any unexpected errors during decoding
+        print(f"Error decoding token: {str(e)}")
         return jsonify({"error": "Invalid or expired token"}), 401
 
-    print("Decoded JWT:", decoded_token)
-
-    # Ensure username_or_email is included in response
-    return jsonify({
-        "message": "Authenticated",
-        "user": {
-            "id": decoded_token.get("user_id"),
-            "role": decoded_token.get("role"),
-            "username_or_email": decoded_token.get("username_or_email"),
-            "institution_id": decoded_token.get("institution_id")
-        }
-    }), 200

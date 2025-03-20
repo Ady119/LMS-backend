@@ -54,7 +54,7 @@ class ProdConfig(Config):
             raw_db_url = raw_db_url.replace("mysql://", "mysql+pymysql://", 1)
         SQLALCHEMY_DATABASE_URI = raw_db_url
     else:
-        SQLALCHEMY_DATABASE_URI = os.getenv('JAWSDB_URL')  # Use JawsDB URL if DATABASE_URL isn't found
+        SQLALCHEMY_DATABASE_URI = os.getenv('JAWSDB_URL')
 
 
 # Auto-detect environment based on the FLASK_ENV environment variable
