@@ -1,5 +1,6 @@
 import os
 import bleach
+import uuid
 from werkzeug.utils import secure_filename, safe_join
 from flask import Blueprint, jsonify, g, request, current_app, send_from_directory, abort, send_file
 from utils.tokens import get_jwt_token, decode_jwt
@@ -767,7 +768,7 @@ def get_assignments(lesson_id):
 @lecturer_bp.route("/assignments/new", methods=["POST"], endpoint="add_assignment")
 @login_required
 def create_assignment():
-    """Create a new assignment and upload the file to Cloudinary."""
+    """Create a new assignment and upload the file to Cloudinary with overwrite handling."""
 
     title = request.form.get("title")
     description = request.form.get("description")
@@ -780,26 +781,41 @@ def create_assignment():
     file_url = None
     cloudinary_public_id = None
 
+    # Handle file upload
     if file:
         try:
+            filename = secure_filename(file.filename)
+            file_extension = os.path.splitext(filename)[1]  # Extract extension
+            
+            # Define Cloudinary folder path
+            cloudinary_folder = "AchievED-LMS/assignments"
+
+            # Generate a unique filename (to prevent overwrites)
+            unique_filename = f"{uuid.uuid4()}{file_extension}"  # Example:  "c5f3b8d1.docx"
+
+            # Upload file
             upload_result = cloudinary.uploader.upload(
                 file, 
-                folder="AchievED-LMS/assignments",
-                resource_type="raw"  # Ensures support for DOCX, PDF, ZIP, etc.
+                folder=cloudinary_folder,
+                resource_type="raw",  # Ensures support for DOCX, PDF, ZIP, etc.
+                use_filename=True,  # Keep filename
+                unique_filename=True  # Prevents unintentional file overwrites
             )
-            file_url = upload_result["secure_url"]
-            cloudinary_public_id = upload_result["public_id"]  # ✅ Store this
+
+            file_url = upload_result["secure_url"]  # Store URL for retrieval
+            cloudinary_public_id = upload_result["public_id"]  # ✅ Store ID for deletion/replacement
 
         except Exception as e:
             print(f"Error uploading file to Cloudinary: {e}")
             return jsonify({"error": "File upload failed"}), 500
 
+    # Save to DB
     new_assignment = Assignment(
         title=title,
         description=description,
         due_date=due_date,
         file_url=file_url,
-        cloudinary_public_id=cloudinary_public_id  # ✅ Now saved in DB
+        cloudinary_public_id=cloudinary_public_id  # ✅ Now saved for precise deletion/replacement
     )
 
     db.session.add(new_assignment)
@@ -809,6 +825,7 @@ def create_assignment():
         "message": "Assignment created successfully",
         "assignment": new_assignment.to_dict()
     }), 201
+
 
 #Edit assignment
 @lecturer_bp.route("/assignments/<int:assignment_id>", methods=["PUT"])
