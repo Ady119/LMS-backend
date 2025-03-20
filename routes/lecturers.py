@@ -893,23 +893,19 @@ def delete_assignment(assignment_id):
     return jsonify({"message": "Assignment deleted successfully"}), 200
 
 #Download unassigned assignment route
-@lecturer_bp.route("/download/assignments/<path:filename>")
-def download_assignment(filename):
+@lecturer_bp.route("/download/assignments/<int:assignment_id>")
+def download_assignment(assignment_id):
     """Retrieve the file URL for an assignment from Cloudinary."""
-    
-    cloudinary_folder = "AchievED-LMS/assignments"
-    public_id = f"{cloudinary_folder}/{filename.rsplit('.', 1)[0]}"  # Remove extension for Cloudinary ID
 
-    print(f"Checking Cloudinary for: {public_id}")
+    assignment = Assignment.query.get(assignment_id)
+
+    if not assignment or not assignment.cloudinary_public_id:
+        return jsonify({"error": "File not found"}), 404
 
     try:
-        # Fetch file details from Cloudinary using `public_id`
-        resource = cloudinary.api.resource(public_id)
-        file_url = resource["secure_url"]
-        print(f"✅ File found: {file_url}")
-
-        return jsonify({"message": "File available for download", "file_url": file_url})
+        resource = cloudinary.api.resource(assignment.cloudinary_public_id)
+        return jsonify({"message": "File available for download", "file_url": resource["secure_url"]})
 
     except cloudinary.exceptions.NotFound:
-        print(f"❌ ERROR: File not found on Cloudinary: {public_id}")
         return jsonify({"error": "File not found"}), 404
+
