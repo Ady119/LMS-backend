@@ -265,12 +265,12 @@ def save_uploaded_file(file, course_id=None, lesson_id=None, is_assignment=False
 
     try:
         upload_result = cloudinary.uploader.upload(
-            file,
-            folder=cloudinary_folder,
-            public_id=os.path.splitext(filename)[0], 
-            resource_type="raw", 
-            format=file_extension[1:],
-        )
+        file,
+        folder="AchievED-LMS/assignments",
+        resource_type="auto",  # Automatically detects file type (image, raw, video, etc.)
+        use_filename=True,      # Keep original filename
+        unique_filename=False   # Prevents renaming files randomly
+    )
 
         file_url = upload_result["secure_url"]
         print(f"File uploaded successfully: {file_url}")
@@ -895,21 +895,26 @@ def delete_assignment(assignment_id):
     return jsonify({"message": "Assignment deleted successfully"}), 200
 
 #Download unassigned assignment route
-@lecturer_bp.route("/download/assignments/<string:assignment_id>")
-def download_assignment(assignment_id):
-    """Fetch the file URL from Cloudinary using public_id instead of filename."""
-
-    assignment = Assignment.query.get(assignment_id)
-    if not assignment or not assignment.cloudinary_public_id:
-        return jsonify({"error": "File not found"}), 404
+@lecturer_bp.route("/download/assignments/<path:filename>")
+def download_assignment(filename):
+    cloudinary_folder = "AchievED-LMS/assignments"
 
     try:
-        resource = cloudinary.api.resource(assignment.cloudinary_public_id)  # Use public_id
-        file_url = resource["secure_url"]
-        print(f"✅ File found: {file_url}")
+        # Fetch all resources in the folder
+        resources = cloudinary.api.resources(type="upload", prefix=cloudinary_folder)
+
+        # Find the correct file by checking its `filename`
+        matching_file = next((res for res in resources["resources"] if res["filename"] == filename), None)
+
+        if not matching_file:
+            print(f"ERROR: File not found in Cloudinary: {cloudinary_folder}/{filename}")
+            return jsonify({"error": "File not found"}), 404
+
+        file_url = matching_file["secure_url"]
+        print(f"File found: {file_url}")
 
         return jsonify({"message": "File available for download", "file_url": file_url})
 
-    except cloudinary.exceptions.NotFound:
-        print(f"❌ ERROR: File not found on Cloudinary: {assignment.cloudinary_public_id}")
-        return jsonify({"error": "File not found"}), 404
+    except Exception as e:
+        print(f"Cloudinary API error: {e}")
+        return jsonify({"error": "Error retrieving file"}), 500

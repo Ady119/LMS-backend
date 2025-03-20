@@ -31,7 +31,8 @@ class LessonSection(db.Model):
 
     lesson = relationship("Lesson", back_populates="contents")
     quiz = relationship("Quiz")
-    assignment = db.relationship("Assignment", backref="lesson_section", lazy=True)
+    assignment = relationship("Assignment", back_populates="sections", overlaps="lesson_section")
+
 
     def __repr__(self):
         return f"<LessonSection {self.title} (Lesson ID {self.lesson_id})>"

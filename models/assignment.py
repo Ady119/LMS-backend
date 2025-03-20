@@ -9,7 +9,7 @@ class Assignment(db.Model):
     due_date = db.Column(db.DateTime, nullable=True)
     file_url = db.Column(db.String(255), nullable=True)
 
-    sections = relationship("LessonSection", back_populates="assignment") 
+    sections = relationship("LessonSection", back_populates="assignment", overlaps="assignment")
 
     def to_dict(self):
         return {
