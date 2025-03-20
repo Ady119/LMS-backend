@@ -759,8 +759,6 @@ def get_assignments(lesson_id):
 @lecturer_bp.route("/assignments/new", methods=["POST"], endpoint="add_assignment")
 @login_required
 def create_assignment():
-    """Create a new assignment and upload the file to Cloudinary."""
-
     title = request.form.get("title")
     description = request.form.get("description")
     due_date = request.form.get("due_date")
@@ -776,13 +774,13 @@ def create_assignment():
             upload_result = cloudinary.uploader.upload(
                 file, 
                 folder="AchievED-LMS/assignments",
-                resource_type="raw"  # Ensure DOCX, PDF, ZIP, etc. are supported
+                resource_type="auto"
             )
             file_url = upload_result["secure_url"]
             print(f"File uploaded successfully: {file_url}")
 
         except Exception as e:
-            print(f"Error uploading file to Cloudinary: {e}")
+            print(f" Error uploading file to Cloudinary: {e}")
             return jsonify({"error": "File upload failed"}), 500
 
     new_assignment = Assignment(
