@@ -243,26 +243,34 @@ ALLOWED_EXTENSIONS = {"pdf", "jpg", "png", "mp4", "zip", "txt", "docx"}
 
 # Check if the file extension is valid
 def allowed_file(filename):
+    """Check if file has a valid extension."""
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def save_uploaded_file(file, course_id=None, lesson_id=None, is_assignment=False):
-    """Securely uploads files to Cloudinary based on type (assignment or lesson content)."""
-    
-    if not file or not allowed_file(file.filename):
-        return None, 
+    """Securely uploads files to Cloudinary, ensuring correct file format."""
 
-    # Ensure filename is secure
+    if not file or not allowed_file(file.filename):
+        return None, "Invalid file type"
+
+    # Ensure filename is safe
     filename = secure_filename(file.filename.replace(" ", "_"))
+    file_extension = os.path.splitext(filename)[1]
 
     if is_assignment:
-        cloudinary_folder = f"AchievED-LMS/assignments"
+        cloudinary_folder = "AchievED-LMS/assignments"
     else:
         if not course_id or not lesson_id:
             return None, "Course ID and Lesson ID required for lesson content"
         cloudinary_folder = f"AchievED-LMS/course_{course_id}/lesson_{lesson_id}"
 
     try:
-        upload_result = cloudinary.uploader.upload(file, folder=cloudinary_folder)
+        upload_result = cloudinary.uploader.upload(
+            file,
+            folder=cloudinary_folder,
+            public_id=os.path.splitext(filename)[0], 
+            resource_type="raw", 
+            format=file_extension[1:],
+        )
 
         file_url = upload_result["secure_url"]
         print(f"File uploaded successfully: {file_url}")
