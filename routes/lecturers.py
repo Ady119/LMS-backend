@@ -322,7 +322,15 @@ def edit_section(course_id, lesson_id, section_id):
     text_content = data.get("text_content", section.text_content)
     quiz_id = data.get("quiz_id", section.quiz_id)
     assignment_id = data.get("assignment_id", section.assignment_id)
-
+    calendar_week_id = data.get("calendar_week_id", section.calendar_week_id)
+    if calendar_week_id:
+        try:
+            calendar_week_id = int(calendar_week_id)
+            if not CalendarWeek.query.get(calendar_week_id):
+                return jsonify({"error": "Invalid calendar_week_id"}), 400
+        except ValueError:
+            return jsonify({"error": "calendar_week_id must be an integer"}), 400
+        
     file = request.files.get("file")
     file_url = section.file_url  
 
@@ -356,6 +364,8 @@ def edit_section(course_id, lesson_id, section_id):
     # Update section details
     section.title = title
     section.content_type = content_type
+    section.calendar_week_id = calendar_week_id
+
 
     if content_type == "quiz":
         section.quiz_id = quiz_id
