@@ -225,7 +225,8 @@ def get_lesson_details(course_id, lesson_id):
                 "title": section.title,
                 "content_type": section.content_type,
                 "text_content": section.text_content if section.content_type == "text" else "",
-                "file_url": section.file_url if section.content_type == "file" else None, 
+                "file_url": section.file_url if section.content_type == "file" else None,
+                "assignment": section.assignment.to_dict() if section.content_type == "assignment" and section.assignment else None, 
             }
             for section in sections
         ],
