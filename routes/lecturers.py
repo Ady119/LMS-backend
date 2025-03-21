@@ -2,6 +2,7 @@ import os
 import bleach
 from werkzeug.utils import secure_filename, safe_join
 from flask import Blueprint, jsonify, g, request, current_app, send_from_directory, abort, send_file
+from sqlalchemy.orm import joinedload
 from utils.tokens import get_jwt_token, decode_jwt
 from utils.utils import login_required
 from utils.dropbox_service import delete_file_from_dropbox, get_file_link, upload_file  
@@ -215,7 +216,12 @@ def get_lesson_details(course_id, lesson_id):
     if not lesson:
         return jsonify({"error": "Lesson not found in this course"}), 404
 
-    sections = LessonSection.query.filter_by(lesson_id=lesson_id).all()
+    sections = (
+        LessonSection.query
+        .options(joinedload(LessonSection.calendar_week))
+        .filter_by(lesson_id=lesson_id)
+        .all()
+    )
 
     lesson_data = {
         "id": lesson.id,
