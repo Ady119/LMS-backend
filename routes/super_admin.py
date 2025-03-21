@@ -325,7 +325,7 @@ def upload_calendar():
         return jsonify({"error": f"Failed to process file: {str(e)}"}), 500
     
 
-@admin_bp.route('/api/admin/calendars/<int:calendar_id>', methods=['GET'])
+@admin_bp.route('/calendars/<int:calendar_id>', methods=['GET'])
 def get_calendar_weeks(calendar_id):
     from models import AcademicCalendar, CalendarWeek
 
