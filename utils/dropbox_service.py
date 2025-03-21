@@ -6,26 +6,34 @@ DROPBOX_ACCESS_TOKEN = os.getenv("DROPBOX_ACCESS_TOKEN")
 if not DROPBOX_ACCESS_TOKEN:
     raise ValueError("Dropbox API access token is missing! Set DROPBOX_ACCESS_TOKEN in environment variables.")
 
-# Initialize Dropbox client
 dbx = dropbox.Dropbox(DROPBOX_ACCESS_TOKEN)
 
 def upload_file(file, filename, folder="assignments"):
-    dropbox_path = f"/AchievED-LMS/{folder}/{filename}"
+    dropbox_path = f"/AchievED-LMS/{folder}/{filename}"  # Internal Dropbox path
+
     try:
-        # Upload file
+        # Upload the file
         dbx.files_upload(file.read(), dropbox_path, mode=dropbox.files.WriteMode("overwrite"))
 
-        # (public URL)
-        shared_link = dbx.sharing_create_shared_link_with_settings(dropbox_path)
-        return shared_link.url.replace("?dl=0", "?raw=1")
+        # Generate a shared link
+        try:
+            shared_link = dbx.sharing_create_shared_link_with_settings(dropbox_path)
+        except dropbox.exceptions.ApiError as e:
+            if 'shared_link_already_exists' in str(e):
+                shared_link = dbx.sharing_list_shared_links(path=dropbox_path).links[0]
+            else:
+                raise e
+
+        public_url = shared_link.url.replace("?dl=0", "?raw=1")  # Make direct download link
+
+        return public_url, dropbox_path  # ✅ Return both
 
     except dropbox.exceptions.ApiError as e:
         print(f"Dropbox API Error: {e}")
-        return None
+        return None, None
+
 
 def get_file_link(filename, folder="assignments"):
-    """Retrieve a Dropbox temporary link for a stored file."""
-
     dropbox_path = f"/AchievED-LMS/{folder}/{filename}"
 
     try:
@@ -41,15 +49,14 @@ def get_file_link(filename, folder="assignments"):
         return None
 
 
-def delete_file_from_dropbox(file_path):
-    """Deletes a file from Dropbox using its stored path."""
+def delete_file_from_dropbox(dropbox_path):
     try:
-        if not file_path.startswith("/AchievED-LMS/"):
-            print(f"Invalid Dropbox path: {file_path}")
+        if not dropbox_path.startswith("/AchievED-LMS/"):
+            print(f"Invalid Dropbox path: {dropbox_path}")
             return False
 
-        dbx.files_delete_v2(file_path)
-        print(f" File deleted from Dropbox: {file_path}")
+        dbx.files_delete_v2(dropbox_path)
+        print(f" File deleted from Dropbox: {dropbox_path}")
         return True
 
     except dropbox.exceptions.ApiError as e:
