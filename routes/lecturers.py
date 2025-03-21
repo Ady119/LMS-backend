@@ -260,7 +260,7 @@ def add_section(course_id, lesson_id):
     if file:
         # Upload file to Dropbox instead of Cloudinary
         dropbox_folder = f"/sections/course_{course_id}/lesson_{lesson_id}"
-        saved_file_url, error = upload_file_to_dropbox(file, folder_path=dropbox_folder)
+        saved_file_url, error = upload_file(file, folder_path=dropbox_folder)
 
         if error:
             return jsonify({"error": "File upload failed"}), 500
@@ -325,7 +325,7 @@ def edit_section(course_id, lesson_id, section_id):
 
         try:
             dropbox_folder = f"/sections/course_{course_id}/lesson_{lesson_id}"
-            file_url, error = upload_file_to_dropbox(file, folder_path=dropbox_folder)
+            file_url, error = upload_file(file, folder_path=dropbox_folder)
 
             if error:
                 return jsonify({"error": "File upload failed"}), 500
