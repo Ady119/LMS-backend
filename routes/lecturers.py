@@ -737,6 +737,7 @@ def create_assignment():
         return jsonify({"error": "Title is required"}), 400
 
     file_url = None
+    dropbox_path = None
 
     if file:
         try:
@@ -746,21 +747,23 @@ def create_assignment():
             if not file_extension:
                 return jsonify({"error": "Invalid file format (no extension)"}), 400
 
-            file_url = upload_file(file, filename, folder="assignments")
-            if not file_url:
+            file_url, dropbox_path = upload_file(file, filename, folder="assignments")
+
+            if not file_url or not dropbox_path:
                 return jsonify({"error": "File upload failed"}), 500
 
             print(f" File uploaded successfully: {file_url}")
 
         except Exception as e:
-            print(f"Error uploading file to Dropbox: {e}")
+            print(f" Error uploading file to Dropbox: {e}")
             return jsonify({"error": "File upload failed"}), 500
 
     new_assignment = Assignment(
         title=title,
         description=description,
         due_date=due_date,
-        file_url=file_url
+        file_url=file_url,
+        dropbox_path=dropbox_path
     )
 
     db.session.add(new_assignment)
@@ -770,6 +773,7 @@ def create_assignment():
         "message": "Assignment created successfully",
         "assignment": new_assignment.to_dict()
     }), 201
+
 
 
 #Edit assignment
