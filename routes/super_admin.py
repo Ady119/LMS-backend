@@ -278,8 +278,9 @@ def upload_calendar():
 
         for row in reader:
             week_number = int(row['Week'])
-            start_date = datetime.strptime(row['Start Date'], '%Y-%m-%d').date()
-            end_date = datetime.strptime(row['End Date'], '%Y-%m-%d').date()
+            start_date = datetime.strptime(row['Start Date'], '%d/%m/%Y').date()
+            end_date = datetime.strptime(row['End Date'], '%d/%m/%Y').date()
+
 
             if start_date > end_date:
                 return jsonify({"error": f"Start date after end date in Week {week_number}"}), 400
