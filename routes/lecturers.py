@@ -220,20 +220,21 @@ def get_lesson_details(course_id, lesson_id):
         "title": lesson.title if lesson.title else "Untitled Lesson",
         "description": lesson.description if lesson.description is not None else "",
         "sections": [
-                    {
-                        "id": section.id,
-                        "title": section.title,
-                        "content_type": section.content_type,
-                        "text_content": section.text_content if section.content_type == "text" else "",
-                        "file_url": section.file_url if section.content_type == "file" else None,
-                        "assignment": section.assignment.to_dict() if section.assignment else None,
-                    }
-                    for section in sections
-                ],
-
+            {
+                "id": section.id,
+                "title": section.title,
+                "content_type": section.content_type,
+                "text_content": section.text_content if section.content_type == "text" else "",
+                "file_url": section.file_url if section.content_type == "file" else None,
+                "assignment": section.assignment.to_dict() if section.assignment else None,
+                "quiz": section.quiz.to_dict() if section.quiz else None,
+            }
+            for section in sections
+        ],
     }
 
     return jsonify(lesson_data), 200
+
 
 
 
