@@ -345,3 +345,17 @@ def get_calendar_weeks(calendar_id):
             "label": w.label
         } for w in weeks]
     })
+    
+@admin_bp.route("/calendars", methods=["GET"])
+def get_all_calendars():
+    calendars = AcademicCalendar.query.order_by(AcademicCalendar.start_date).all()
+
+    return jsonify([
+        {
+            "id": c.id,
+            "name": c.name,
+            "start_date": str(c.start_date),
+            "end_date": str(c.end_date)
+        }
+        for c in calendars
+    ])
