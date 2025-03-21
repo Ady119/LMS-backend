@@ -1,4 +1,5 @@
 from models import db
+from datetime import date
 from sqlalchemy.orm import relationship
 from sqlalchemy import CheckConstraint, func
 
@@ -15,12 +16,18 @@ class LessonSection(db.Model):
     text_content = db.Column(db.Text, nullable=True)  
     file_url = db.Column(db.String(255), nullable=True)  
     order = db.Column(db.Integer, nullable=False, default=1)  
-
-    #Auto-increment `order` within the lesson
+    calendar_week_id = db.Column(db.Integer, db.ForeignKey("calendar_weeks.id"), nullable=True)
+    
     @staticmethod
     def get_next_order(lesson_id):
         last_section = LessonSection.query.filter_by(lesson_id=lesson_id).order_by(LessonSection.order.desc()).first()
         return (last_section.order + 1) if last_section else 1
+    
+    @property
+    def is_active(self):
+        if not self.calendar_week:
+            return True
+        return self.calendar_week.start_date <= date.today()
 
     __table_args__ = (
         CheckConstraint(
@@ -32,7 +39,7 @@ class LessonSection(db.Model):
     lesson = relationship("Lesson", back_populates="contents")
     quiz = relationship("Quiz")
     assignment = relationship("Assignment", back_populates="sections", overlaps="lesson_section")
-
+    calendar_week = relationship("CalendarWeek", back_populates="sections")
 
     def __repr__(self):
         return f"<LessonSection {self.title} (Lesson ID {self.lesson_id})>"
@@ -48,4 +55,7 @@ class LessonSection(db.Model):
             "text_content": self.text_content,
             "file_url": self.file_url if self.file_url else None,
             "order": self.order,
-        }
+            "calendar_week_id": self.calendar_week_id,
+            "calendar_week_label": self.calendar_week.label if self.calendar_week else None,
+            "is_active": self.is_active
+            }

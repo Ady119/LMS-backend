@@ -7,9 +7,12 @@ class Degree(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False, unique=True)
     institution_id = db.Column(db.Integer, db.ForeignKey("institutions.id"), nullable=False)
-
+    calendar_id = db.Column(db.Integer, db.ForeignKey("academic_calendars.id"), nullable=True)
+    
+    calendar = relationship("AcademicCalendar", back_populates="degrees")
     institution = relationship("Institution", back_populates="degrees")
     courses = relationship("Course", back_populates="degree", cascade="all, delete-orphan")
+    
     def __repr__(self):
         return f"<Degree {self.name} (Institution ID {self.institution_id})>"
 
@@ -17,5 +20,6 @@ class Degree(db.Model):
         return {
             "id": self.id,
             "name": self.name,
-            "institution_id": self.institution_id
+            "institution_id": self.institution_id,
+            "calendar_id": self.calendar_id,
         }

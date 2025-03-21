@@ -8,6 +8,8 @@ from models.users import User
 
 from models.institutions import Institution
 from models.degrees import Degree 
+from models.academic_calendar import AcademicCalendar
+from models.calendar_week import CalendarWeek
 from models.enrolments import Enrolment
 
 from models.course_lecturers import CourseLecturer
