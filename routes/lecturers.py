@@ -779,7 +779,7 @@ def create_assignment():
 #Edit assignment
 @lecturer_bp.route("/assignments/<int:assignment_id>", methods=["PUT"])
 @login_required
-def edit_assignment(assignment_id):    
+def edit_assignment(assignment_id):
     assignment = Assignment.query.get(assignment_id)
     if not assignment:
         return jsonify({"error": "Assignment not found"}), 404
@@ -806,35 +806,41 @@ def edit_assignment(assignment_id):
         assignment.due_date = due_date
         updated = True
 
-    # File Upload & Replacement
+    # File Upload/Replace
     if file:
         filename = secure_filename(file.filename)
 
-        if assignment.file_url:
+        # Delete old file from Dropbox
+        if assignment.dropbox_path:
             try:
-                delete_file_from_dropbox(assignment.file_url) 
-                print(f" Old file deleted from Dropbox: {assignment.file_url}")
+                delete_file_from_dropbox(assignment.dropbox_path)
+                print(f"Old file deleted from Dropbox: {assignment.dropbox_path}")
             except Exception as e:
                 print(f"Error deleting old file from Dropbox: {e}")
 
-        # Upload new file to Dropbox
         try:
-            assignment.file_url = upload_file(file, filename, folder="assignments")
-            if not assignment.file_url:
+            public_url, dropbox_path = upload_file(file, filename, folder="assignments")
+            if not public_url:
                 return jsonify({"error": "File upload failed"}), 500
 
-            print(f"New file uploaded successfully: {assignment.file_url}")
+            assignment.file_url = public_url
+            assignment.dropbox_path = dropbox_path
             updated = True
 
+            print(f"New file uploaded successfully: {public_url}")
+
         except Exception as e:
-            print(f" Error uploading new file to Dropbox: {e}")
+            print(f"Error uploading new file to Dropbox: {e}")
             return jsonify({"error": "File upload failed"}), 500
 
     if not updated:
         return jsonify({"message": "No changes made."}), 200
 
     db.session.commit()
-    return jsonify({"message": "Assignment updated successfully", "assignment": assignment.to_dict()}), 200
+    return jsonify({
+        "message": "Assignment updated successfully",
+        "assignment": assignment.to_dict()
+    }), 200
 
 
 #Delete an assignment
