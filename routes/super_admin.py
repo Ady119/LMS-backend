@@ -281,15 +281,19 @@ def upload_calendar():
             start_date = datetime.strptime(row['Start Date'], '%d/%m/%Y').date()
             end_date = datetime.strptime(row['End Date'], '%d/%m/%Y').date()
 
-
             if start_date > end_date:
                 return jsonify({"error": f"Start date after end date in Week {week_number}"}), 400
+
+            label = row.get('Label', f"Week {week_number}").strip()
+            is_break_raw = row.get('Is Break', '').strip().lower()
+            is_break = is_break_raw in ['true', '1', 'yes']
 
             weeks.append({
                 'week_number': week_number,
                 'start_date': start_date,
                 'end_date': end_date,
-                'label': f"Week {week_number}"
+                'label': label,
+                'is_break': is_break
             })
             start_dates.append(start_date)
 
@@ -309,7 +313,8 @@ def upload_calendar():
                 week_number=w['week_number'],
                 start_date=w['start_date'],
                 end_date=w['end_date'],
-                label=w['label']
+                label=w['label'],
+                is_break=w['is_break']
             ))
 
         if degree_id:
@@ -324,7 +329,7 @@ def upload_calendar():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": f"Failed to process file: {str(e)}"}), 500
-    
+
 
 @admin_bp.route('/calendars/<int:calendar_id>', methods=['GET'])
 def get_calendar_weeks(calendar_id):
