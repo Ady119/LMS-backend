@@ -16,6 +16,8 @@ from models.quizzes import Quiz
 from models.multiple_choice import MultipleChoiceQuestion
 from models.short_quiz import ShortAnswerQuestion  
 from models.assignment import Assignment
+from models.academic_calendar import AcademicCalendar
+from models.calendar_week import CalendarWeek
 
 # Lecturers' blueprint
 lecturer_bp = Blueprint("lecturer", __name__)
@@ -249,6 +251,14 @@ def add_section(course_id, lesson_id):
     file = request.files.get("file")
     assignment_id = request.form.get("assignment_id")
     quiz_id = request.form.get("quiz_id")
+    calendar_week_id = request.form.get("calendar_week_id")
+    if calendar_week_id:
+        try:
+            calendar_week_id = int(calendar_week_id)
+            if not CalendarWeek.query.get(calendar_week_id):
+                return jsonify({"error": "Invalid calendar_week_id"}), 400
+        except ValueError:
+            return jsonify({"error": "calendar_week_id must be an integer"}), 400
 
     if not title or not content_type:
         return jsonify({"error": "Title and content type are required"}), 400
@@ -271,14 +281,16 @@ def add_section(course_id, lesson_id):
     text_content = bleach.clean(text_content, tags=allowed_tags, strip=True)
 
     new_section = LessonSection(
-        lesson_id=lesson_id,
-        title=title,
-        content_type=content_type,
-        text_content=text_content,
-        file_url=saved_file_url,
-        assignment_id=assignment_id,
-        quiz_id=quiz_id
-    )
+    lesson_id=lesson_id,
+    title=title,
+    content_type=content_type,
+    text_content=text_content,
+    file_url=saved_file_url,
+    assignment_id=assignment_id,
+    quiz_id=quiz_id,
+    calendar_week_id=calendar_week_id
+)
+
 
     db.session.add(new_section)
     db.session.commit()
@@ -780,7 +792,6 @@ def edit_assignment(assignment_id):
         assignment.due_date = due_date
         updated = True
 
-    # File Upload/Replace
     if file:
         filename = secure_filename(file.filename)
 
@@ -864,3 +875,27 @@ def download_assignment(filename):
     except Exception as e:
         print(f" ERROR retrieving file from Dropbox: {e}")
         return jsonify({"error": "An unexpected error occurred"}), 500
+    
+#Fetch calendar weeks for course
+@lecturer_bp.route("/courses/<int:course_id>/calendar_weeks", methods=["GET"])
+def get_calendar_weeks_for_course(course_id):
+    course = Course.query.get_or_404(course_id)
+    degree = course.degree
+    calendar = degree.calendar
+
+    if not calendar:
+        return jsonify({"error": "No academic calendar assigned to this degree."}), 404
+
+    weeks = CalendarWeek.query.filter_by(calendar_id=calendar.id).order_by(CalendarWeek.week_number).all()
+
+    return jsonify([
+        {
+            "id": w.id,
+            "week_number": w.week_number,
+            "label": w.label,
+            "start_date": str(w.start_date),
+            "end_date": str(w.end_date),
+            "is_break": w.is_break
+        }
+        for w in weeks
+    ])
