@@ -29,6 +29,13 @@ class LessonSection(db.Model):
             return True
         return self.calendar_week.start_date <= date.today()
 
+    @property
+    def is_current_week(self):
+        if not self.calendar_week:
+            return False
+        today = date.today()
+        return self.calendar_week.start_date <= today <= self.calendar_week.end_date
+
     __table_args__ = (
         CheckConstraint(
             "(quiz_id IS NULL OR assignment_id IS NULL)", 
@@ -57,5 +64,7 @@ class LessonSection(db.Model):
             "order": self.order,
             "calendar_week_id": self.calendar_week_id,
             "calendar_week_label": self.calendar_week.label if self.calendar_week else None,
-            "is_active": self.is_active
+            "is_active": self.is_active,
+            "is_current_week": self.is_current_week
+
             }
