@@ -9,28 +9,31 @@ if not DROPBOX_ACCESS_TOKEN:
 dbx = dropbox.Dropbox(DROPBOX_ACCESS_TOKEN)
 
 def upload_file(file, filename, folder="assignments"):
-    dropbox_path = f"/AchievED-LMS/{folder}/{filename}"  # Internal Dropbox path
+    dropbox_path = f"/AchievED-LMS/{folder}/{filename}" 
 
     try:
-        # Upload the file
+        # Upload file to Dropbox
         dbx.files_upload(file.read(), dropbox_path, mode=dropbox.files.WriteMode("overwrite"))
 
-        # Generate a shared link
+        shared_link = None
         try:
-            shared_link = dbx.sharing_create_shared_link_with_settings(dropbox_path)
+            existing_links = dbx.sharing_list_shared_links(path=dropbox_path).links
+            if existing_links:
+                shared_link = existing_links[0] 
         except dropbox.exceptions.ApiError as e:
-            if 'shared_link_already_exists' in str(e):
-                shared_link = dbx.sharing_list_shared_links(path=dropbox_path).links[0]
-            else:
-                raise e
+            print(f"Warning: Unable to list shared links - {e}")
 
-        public_url = shared_link.url.replace("?dl=0", "?raw=1")  # Make direct download link
+        if not shared_link:
+            shared_link = dbx.sharing_create_shared_link_with_settings(dropbox_path)
 
-        return public_url, dropbox_path  # ✅ Return both
+        public_url = shared_link.url.replace("?dl=0", "?raw=1")
+
+        return public_url, dropbox_path
 
     except dropbox.exceptions.ApiError as e:
         print(f"Dropbox API Error: {e}")
         return None, None
+
 
 
 def get_file_link(filename, folder="assignments"):
