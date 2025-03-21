@@ -4,7 +4,6 @@ from sqlalchemy.orm import relationship
 class Assignment(db.Model):
     __tablename__ = "assignments"
     id = db.Column(db.Integer, primary_key=True)
-    cloudinary_public_id = db.Column(db.String(255), nullable=True)
     title = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text, nullable=True)
     due_date = db.Column(db.DateTime, nullable=True)
