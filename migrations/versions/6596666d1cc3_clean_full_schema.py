@@ -1,8 +1,8 @@
-"""Fresh migration after calendar model
+"""Clean full schema
 
-Revision ID: b3416030d07f
+Revision ID: 6596666d1cc3
 Revises: 
-Create Date: 2025-03-21 17:46:45.903486
+Create Date: 2025-03-21 19:14:13.121223
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'b3416030d07f'
+revision = '6596666d1cc3'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -62,6 +62,7 @@ def upgrade():
     sa.Column('start_date', sa.Date(), nullable=False),
     sa.Column('end_date', sa.Date(), nullable=False),
     sa.Column('label', sa.String(length=100), nullable=False),
+    sa.Column('is_break', sa.Boolean(), nullable=True),
     sa.ForeignKeyConstraint(['calendar_id'], ['academic_calendars.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('calendar_id', 'week_number', name='uq_calendar_week')
