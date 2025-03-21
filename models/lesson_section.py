@@ -66,5 +66,4 @@ class LessonSection(db.Model):
             "calendar_week_label": self.calendar_week.label if self.calendar_week else None,
             "is_active": self.is_active,
             "is_current_week": self.is_current_week
-
             }

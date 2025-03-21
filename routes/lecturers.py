@@ -230,7 +230,9 @@ def get_lesson_details(course_id, lesson_id):
                 "file_url": section.file_url if section.content_type == "file" else None,
                 "assignment": section.assignment.to_dict() if section.assignment else None,
                 "quiz": section.quiz.to_dict() if section.quiz else None,
-                "is_current_week":section.is_current_week,
+                "calendar_week_id": section.calendar_week_id,
+                "calendar_week_label": section.calendar_week.label if section.calendar_week else None,
+                "is_current_week": section.is_current_week,
             }
             for section in sections
         ],
