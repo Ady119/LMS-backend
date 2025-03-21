@@ -220,48 +220,20 @@ def get_lesson_details(course_id, lesson_id):
         "title": lesson.title if lesson.title else "Untitled Lesson",
         "description": lesson.description if lesson.description is not None else "",
         "sections": [
-            {
-                "id": section.id,
-                "title": section.title,
-                "content_type": section.content_type,
-                "text_content": section.text_content if section.content_type == "text" else "",
-                "file_url": section.file_url if section.content_type == "file" else None,
-                "assignment": section.assignment.to_dict() if section.content_type == "assignment" and section.assignment else None, 
-            }
-            for section in sections
-        ],
+                    {
+                        "id": section.id,
+                        "title": section.title,
+                        "content_type": section.content_type,
+                        "text_content": section.text_content if section.content_type == "text" else "",
+                        "file_url": section.file_url if section.content_type == "file" else None,
+                        "assignment": section.assignment.to_dict() if section.assignment else None,
+                    }
+                    for section in sections
+                ],
+
     }
 
     return jsonify(lesson_data), 200
-
-
-ALLOWED_EXTENSIONS = {"pdf", "jpg", "png", "mp4", "zip", "txt", "docx"}
-
-def allowed_file(filename):
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
-
-def upload_file_to_dropbox(file, folder_path="/assignments"):    
-    if not file or not allowed_file(file.filename):
-        return None, "Invalid file type"
-
-    filename = secure_filename(file.filename)
-    dropbox_path = f"{folder_path}/{filename}"
-
-    try:
-        dbx = dropbox.Dropbox(os.getenv("DROPBOX_ACCESS_TOKEN"))
-
-        # Upload file
-        dbx.files_upload(file.read(), dropbox_path, mode=dropbox.files.WriteMode("overwrite"))
-
-        # Create a shared link for download
-        shared_link = dbx.sharing_create_shared_link(dropbox_path).url.replace("?dl=0", "?dl=1")
-
-        print(f"File uploaded successfully: {shared_link}")
-        return shared_link, None
-
-    except Exception as e:
-        print(f" Error uploading to Dropbox: {e}")
-        return None, "Upload failed"
 
 
 
