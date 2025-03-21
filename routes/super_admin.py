@@ -1,3 +1,5 @@
+import csv
+from datetime import datetime
 from flask import Blueprint, request, jsonify, g
 from models.courses import Course, db
 from werkzeug.security import generate_password_hash
@@ -5,6 +7,9 @@ from models.users import User
 from models.degrees import Degree
 from models.enrolments import Enrolment
 from models.course_lecturers import CourseLecturer
+from models.academic_calendar import AcademicCalendar
+from models.calendar_week import CalendarWeek
+ 
 from utils.utils import login_required
 
 admin_bp = Blueprint('admin', __name__)
@@ -242,10 +247,6 @@ def get_students():
     students = User.query.filter(User.role == "student").all()
     return jsonify({"students": [student.to_dict() for student in students]}), 200
     
-
-
-
-
 # Retrieve all lecturers
 @admin_bp.route('/users/lecturers', methods=['GET'])
 @login_required
@@ -259,3 +260,87 @@ def get_lecturers():
 
     return jsonify([lecturer.to_dict() for lecturer in lecturers]), 200
 
+#upload calendar
+@admin_bp.route('/upload_calendar', methods=['POST'])
+def upload_calendar():
+    file = request.files.get('file')
+    calendar_name = request.form.get('calendar_name')
+    degree_id = request.form.get('degree_id')
+
+    if not file or not calendar_name:
+        return jsonify({"error": "File and calendar name are required"}), 400
+
+    try:
+        decoded = file.read().decode('utf-8').splitlines()
+        reader = csv.DictReader(decoded)
+        weeks = []
+        start_dates = []
+
+        for row in reader:
+            week_number = int(row['Week'])
+            start_date = datetime.strptime(row['Start Date'], '%Y-%m-%d').date()
+            end_date = datetime.strptime(row['End Date'], '%Y-%m-%d').date()
+
+            if start_date > end_date:
+                return jsonify({"error": f"Start date after end date in Week {week_number}"}), 400
+
+            weeks.append({
+                'week_number': week_number,
+                'start_date': start_date,
+                'end_date': end_date,
+                'label': f"Week {week_number}"
+            })
+            start_dates.append(start_date)
+
+        # Create AcademicCalendar
+        calendar = AcademicCalendar(
+            name=calendar_name,
+            start_date=min(start_dates),
+            end_date=max([w['end_date'] for w in weeks])
+        )
+        db.session.add(calendar)
+        db.session.flush()
+
+        # Create CalendarWeek entries
+        for w in weeks:
+            db.session.add(CalendarWeek(
+                calendar_id=calendar.id,
+                week_number=w['week_number'],
+                start_date=w['start_date'],
+                end_date=w['end_date'],
+                label=w['label']
+            ))
+
+        if degree_id:
+            degree = Degree.query.get(degree_id)
+            if not degree:
+                return jsonify({"error": "Degree not found"}), 404
+            degree.calendar_id = calendar.id
+
+        db.session.commit()
+        return jsonify({"message": "Calendar uploaded successfully", "calendar_id": calendar.id})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Failed to process file: {str(e)}"}), 500
+    
+
+@admin_bp.route('/api/admin/calendars/<int:calendar_id>', methods=['GET'])
+def get_calendar_weeks(calendar_id):
+    from models import AcademicCalendar, CalendarWeek
+
+    calendar = AcademicCalendar.query.get_or_404(calendar_id)
+    weeks = CalendarWeek.query.filter_by(calendar_id=calendar.id).order_by(CalendarWeek.week_number).all()
+
+    return jsonify({
+        "calendar_id": calendar.id,
+        "name": calendar.name,
+        "start_date": str(calendar.start_date),
+        "end_date": str(calendar.end_date),
+        "weeks": [{
+            "week_number": w.week_number,
+            "start_date": str(w.start_date),
+            "end_date": str(w.end_date),
+            "label": w.label
+        } for w in weeks]
+    })
