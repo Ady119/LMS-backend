@@ -117,13 +117,13 @@ def get_student_lessons(course_id):
 
 @student_bp.route("/courses/<int:course_id>/lessons/<int:lesson_id>/content", methods=["GET"])
 @login_required
-def get_student_lesson_sections(course_id, lesson_id):
+def get_student_lesson_details(course_id, lesson_id):
     student_id = g.user.get("user_id")
 
     if not student_id:
         return jsonify({"error": "Invalid token"}), 401
 
-    # Ensure student is enrolled in the course
+    # Check if student is directly enrolled in the course
     enrolled = db.session.query(Enrolment).join(
         Course, Enrolment.degree_id == Course.degree_id
     ).filter(
@@ -134,47 +134,38 @@ def get_student_lesson_sections(course_id, lesson_id):
     if not enrolled:
         return jsonify({"error": "Unauthorized or course not found"}), 403
 
-    sections = db.session.query(LessonSection).filter_by(lesson_id=lesson_id).all()
+    # Fetch the lesson
+    lesson = Lesson.query.filter_by(id=lesson_id, course_id=course_id).first()
+    if not lesson:
+        return jsonify({"error": "Lesson not found in this course"}), 404
+
+    sections = (
+        LessonSection.query
+        .options(joinedload(LessonSection.calendar_week), joinedload(LessonSection.assignment), joinedload(LessonSection.quiz))
+        .filter_by(lesson_id=lesson_id)
+        .all()
+    )
 
     lesson_data = {
-        "lesson_id": lesson_id,
-        "sections": []
+        "id": lesson.id,
+        "title": lesson.title if lesson.title else "Untitled Lesson",
+        "description": lesson.description if lesson.description is not None else "",
+        "sections": [
+            {
+                "id": section.id,
+                "title": section.title,
+                "content_type": section.content_type,
+                "text_content": section.text_content if section.content_type == "text" else "",
+                "file_url": section.file_url if section.content_type == "file" else None,
+                "assignment": section.assignment.to_dict() if section.assignment else None,
+                "quiz": section.quiz.to_dict() if section.quiz else None,
+                "calendar_week_id": section.calendar_week_id,
+                "calendar_week_label": section.calendar_week.label if section.calendar_week else None,
+                "is_current_week": section.is_current_week,
+            }
+            for section in sections
+        ],
     }
-
-    for section in sections:
-        section_data = {
-            "id": section.id,
-            "title": section.title,
-            "content_type": section.content_type,
-            "text_content": section.text_content if section.content_type == "text" else "",
-            "file_url": section.file_url if section.content_type == "file" else None,
-        }
-
-        # Fetch quiz if exists
-        if section.quiz_id:
-            quiz = db.session.query(Quiz).filter_by(id=section.quiz_id).first()
-            if quiz:
-                section_data["quiz"] = {
-                    "id": quiz.id,
-                    "title": quiz.title,
-                    "deadline": quiz.deadline,
-                    "passing_score": quiz.passing_score,
-                    "total_questions": quiz.total_questions, 
-                    "time_limit":quiz.time_limit 
-                }
-
-        #  Fetch assignment if exists
-        if section.assignment_id:
-            assignment = db.session.query(Assignment).filter_by(id=section.assignment_id).first()
-            if assignment:
-                section_data["assignment"] = {
-                    "id": assignment.id,
-                    "title": assignment.title,
-                    "description": assignment.description,
-                    "due_date": assignment.due_date.isoformat() if assignment.due_date else None
-                }
-
-        lesson_data["sections"].append(section_data)
 
     return jsonify(lesson_data), 200
 
