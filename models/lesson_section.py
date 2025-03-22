@@ -62,8 +62,14 @@ class LessonSection(db.Model):
             "text_content": self.text_content,
             "file_url": self.file_url if self.file_url else None,
             "order": self.order,
-            "calendar_week_id": self.calendar_week_id,
-            "calendar_week_label": self.calendar_week.label if self.calendar_week else None,
+            "calendar_week": {
+                "id": self.calendar_week.id,
+                "label": self.calendar_week.label,
+                "start_date": str(self.calendar_week.start_date),
+                "end_date": str(self.calendar_week.end_date),
+                "is_break": self.calendar_week.is_break
+            } if self.calendar_week else None,
             "is_active": self.is_active,
             "is_current_week": self.is_current_week
-            }
+        }
+
