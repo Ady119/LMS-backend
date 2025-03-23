@@ -20,12 +20,13 @@ from models.quiz_attempts import QuizAttempt
 from models.quiz_attempts_answers import QuizAttemptAnswer
 from models.quiz_results import QuizResult
 from models.enrolments import Enrolment
+from models.assignment_submission import AssignmentSubmission
 
 # Lecturers' blueprint
 student_bp = Blueprint("student", __name__)
 
 def get_upload_folder():
-    return current_app.config.get["CLOUDINARY_UPLOAD_FOLDER", "AvhievED-LMS"]
+    return current_app.config.get["AvhievED-LMS"]
 
 
 @student_bp.after_request
