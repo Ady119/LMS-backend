@@ -616,7 +616,11 @@ def submit_assignment():
 
     except Exception as e:
         print(f" Error uploading to Dropbox: {e}")
-        return jsonify({"error": "File upload failed"}), 500
+        print(f"❌ Unexpected error during assignment upload: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"File upload failed: {str(e)}"}), 500
+
 
 
 #fetch assihnment details
