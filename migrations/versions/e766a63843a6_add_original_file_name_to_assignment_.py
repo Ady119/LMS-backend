@@ -1,8 +1,8 @@
-"""Clean full schema
+"""Add original_file_name to assignment_submissions
 
-Revision ID: 6596666d1cc3
+Revision ID: e766a63843a6
 Revises: 
-Create Date: 2025-03-21 19:14:13.121223
+Create Date: 2025-03-23 15:54:27.827566
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '6596666d1cc3'
+revision = 'e766a63843a6'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -113,6 +113,7 @@ def upgrade():
     sa.Column('assignment_id', sa.Integer(), nullable=False),
     sa.Column('student_id', sa.Integer(), nullable=False),
     sa.Column('file_url', sa.String(length=255), nullable=False),
+    sa.Column('original_file_name', sa.String(length=255), nullable=True),
     sa.Column('submitted_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['assignment_id'], ['assignments.id'], ),
     sa.ForeignKeyConstraint(['student_id'], ['users.id'], ),
