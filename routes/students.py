@@ -193,21 +193,21 @@ def download_student_file(course_id, lesson_id, filename):
     if not enrolled:
         return jsonify({"error": "Unauthorized or course not found"}), 403
 
-    dropbox_folder = f"course_{course_id}/lesson_{lesson_id}"  # ✅ Adjusted for Dropbox storage structure
+    dropbox_folder = f"course_{course_id}/lesson_{lesson_id}"
 
     try:
         # Get Dropbox file link
         file_url = get_file_link(filename, folder=dropbox_folder)
 
         if not file_url:
-            print(f"❌ ERROR: File not found in Dropbox: {filename}")
+            print(f"ERROR: File not found in Dropbox: {filename}")
             return jsonify({"error": "File not found"}), 404
 
-        print(f"✅ File found: {file_url}")
+        print(f" File found: {file_url}")
         return jsonify({"message": "File available for download", "file_url": file_url})
 
     except Exception as e:
-        print(f"❌ ERROR retrieving file from Dropbox: {e}")
+        print(f" ERROR retrieving file from Dropbox: {e}")
         return jsonify({"error": "An unexpected error occurred"}), 500
 
 

@@ -24,7 +24,7 @@ from models.calendar_week import CalendarWeek
 lecturer_bp = Blueprint("lecturer", __name__)
 
 def get_upload_folder():
-    return current_app.config.get["CLOUDINARY_UPLOAD_FOLDER", "AvhievED-LMS"]
+    return current_app.config.get["AvhievED-LMS"]
 
 @lecturer_bp.after_request
 def add_cors_headers(response):
@@ -278,8 +278,8 @@ def add_section(course_id, lesson_id):
     saved_file_url = None
 
     if file:
-        # Upload file to Dropbox instead of Cloudinary
-        dropbox_folder = f"/sections/course_{course_id}/lesson_{lesson_id}"
+        # Upload file to Dropbox
+        dropbox_folder = f"/AchievED-LMS/sections/course_{course_id}/lesson_{lesson_id}"
         saved_file_url, error = upload_file(file, folder_path=dropbox_folder)
 
         if error:
@@ -354,7 +354,7 @@ def edit_section(course_id, lesson_id, section_id):
                 print(f" Error deleting old file from Dropbox: {e}")
 
         try:
-            dropbox_folder = f"/sections/course_{course_id}/lesson_{lesson_id}"
+            dropbox_folder = f"/AchievED-LMS/sections/course_{course_id}/lesson_{lesson_id}"
             file_url, error = upload_file(file, folder_path=dropbox_folder)
 
             if error:
@@ -409,10 +409,9 @@ def edit_section(course_id, lesson_id, section_id):
 def download_file(course_id, lesson_id, filename):
     """Retrieve a lesson file's download link from Dropbox."""
 
-    # Define Dropbox folder path
     dropbox_folder = f"course_{course_id}/lesson_{lesson_id}"
 
-    # ✅ Get the file link from Dropbox
+    # Get the file link from Dropbox
     file_url = get_file_link(filename, folder=dropbox_folder)
 
     if not file_url:
@@ -725,7 +724,6 @@ def get_available_assignments():
 @lecturer_bp.route("/lessons/<int:lesson_id>/assignments", methods=["GET"], endpoint="get_lesson_assignments")
 @login_required
 def get_assignments(lesson_id):
-    """Retrieve all assignments for a specific lesson."""
     assignments = Assignment.query.filter_by(lesson_id=lesson_id).all()
     return jsonify([assignment.to_dict() for assignment in assignments]), 200
 
