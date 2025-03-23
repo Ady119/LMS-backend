@@ -7,7 +7,7 @@ pymysql.install_as_MySQLdb()
 
 class Config:
     SECRET_KEY = os.getenv('SECRET_KEY', 'change_this_secret_key')      
-    SQLALCHEMY_DATABASE_URI = None
+    SQLALCHEMY_DATABASE_URI = "mysql+pymysql://root:@localhost/lms_db2"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     raw_db_url = os.getenv('DATABASE_URL')
@@ -43,7 +43,7 @@ class Config:
         "poolclass": QueuePool,
         "pool_size": 5,
         "max_overflow": 2,
-        "pool_timeout": 10
+        "pool_timeout": 1800  
     }
 
 class DevConfig(Config):
