@@ -288,7 +288,7 @@ def add_section(course_id, lesson_id):
 
     # Sanitize text input
     allowed_tags = ["b", "i", "u", "strong", "em", "p", "br", "ul", "ol", "li", "a", "blockquote", "h1", "h2", "h3"]
-    text_content = bleach.clean(text_content, tags=allowed_tags, strip=True)
+    text_content = bleach.clean(text_content or "", tags=allowed_tags, strip=True)
 
     new_section = LessonSection(
     lesson_id=lesson_id,
@@ -369,7 +369,7 @@ def edit_section(course_id, lesson_id, section_id):
 
     # Sanitize text content
     allowed_tags = ["b", "i", "u", "strong", "em", "p", "br", "ul", "ol", "li", "a", "blockquote", "h1", "h2", "h3"]
-    text_content = bleach.clean(text_content, tags=allowed_tags, strip=True)
+    text_content = bleach.clean(text_content or "", tags=allowed_tags, strip=True)
 
     # Update section details
     section.title = title
