@@ -611,7 +611,8 @@ def submit_assignment():
         db.session.add(submission)
         db.session.commit()
 
-        return jsonify({"message": "Assignment submitted successfully!", "file_url": file_url}), 201
+        return jsonify({"message": "Assignment submitted successfully!", "file_url": file_url}), 200
+
 
     except Exception as e:
         print(f" Error uploading to Dropbox: {e}")
