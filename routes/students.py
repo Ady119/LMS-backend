@@ -1,8 +1,8 @@
 import os
 from datetime import datetime
-from utils.dropbox_service import get_file_link, delete_file_from_dropbox, upload_file
+from utils.dropbox_service import get_temporary_download_link, delete_file_from_dropbox, upload_file, get
 from werkzeug.utils import secure_filename, safe_join
-from flask import Blueprint, jsonify, g, request, current_app, send_from_directory, abort, send_file
+from flask import Blueprint, jsonify, g, request, current_app, send_from_directory, abort, send_file, redirect
 from sqlalchemy.orm import aliased, joinedload
 
 from urllib.parse import unquote
@@ -197,7 +197,7 @@ def download_student_file(course_id, lesson_id, filename):
 
     try:
         # Get Dropbox file link
-        file_url = get_file_link(filename, folder=dropbox_folder)
+        file_url = get_temporary_download_link(filename, folder=dropbox_folder)
 
         if not file_url:
             print(f"ERROR: File not found in Dropbox: {filename}")
@@ -615,7 +615,6 @@ def submit_assignment():
 
     except Exception as e:
         print(f" Error uploading to Dropbox: {e}")
-        print(f"❌ Unexpected error during assignment upload: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({"error": f"File upload failed: {str(e)}"}), 500
@@ -672,29 +671,18 @@ def delete_assignment_submission(submission_id):
     return jsonify({"message": "Submission deleted successfully"}), 200
 
 #assignment file download
-@student_bp.route("/assignments/<int:assignment_id>/submissions/<int:submission_id>/download", methods=["GET"])
+@student_bp.route('/download/courses/<int:course_id>/lessons/<int:lesson_id>/assignments/<int:assignment_id>/<string:file_name>')
 @login_required
-def download_assignment_submission(assignment_id, submission_id):    
+def download_assignment_file(course_id, lesson_id, assignment_id, file_name):
     user_id = g.user.get("user_id")
-    user_role = g.user.get("role") 
 
-    submission = AssignmentSubmission.query.filter_by(id=submission_id, assignment_id=assignment_id).first()
-
-    if not submission:
-        print(f" Submission not found: {submission_id}")
-        return jsonify({"error": "File not found"}), 404
-
-    if submission.student_id != user_id and user_role != "lecturer":
-        print(f" Unauthorized download attempt by User {user_id} (Role: {user_role}) for Submission {submission_id}")
-        return jsonify({"error": "Unauthorized"}), 403
-
-    file_url = get_file_link(submission.file_url)
+    dropbox_path = f"assignments/course_{course_id}/lesson_{lesson_id}/assignment_{assignment_id}/student_{user_id}/{file_name}"
+    file_url = get_temporary_download_link(dropbox_path)
 
     if not file_url:
-        print(f" File not found in Dropbox for Submission {submission_id}")
-        return jsonify({"error": "File not found"}), 404
+        return jsonify({"error": "Unable to generate Dropbox download link"}), 500
 
-    print(f" User {user_id} (Role: {user_role}) is downloading: {file_url}")
+    return redirect(file_url)
 
-    return jsonify({"message": "File available for download", "file_url": file_url})
+
 
