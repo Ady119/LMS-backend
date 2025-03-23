@@ -592,12 +592,11 @@ def submit_assignment():
 
     try:
         # Upload new file to Dropbox
-        file_url = upload_file(file, unique_filename, folder=dropbox_folder)
+        public_url, _ = upload_file(file, unique_filename, folder=dropbox_folder)
 
-        if not file_url:
+        if not public_url:
             return jsonify({"error": "File upload to Dropbox failed"}), 500
 
-        print(f" File uploaded successfully: {file_url}")
 
         if old_submission:
             db.session.delete(old_submission)
@@ -606,7 +605,7 @@ def submit_assignment():
         submission = AssignmentSubmission(
             assignment_id=assignment.id,
             student_id=user_id,
-            file_url=file_url
+            file_url=public_url
         )
         db.session.add(submission)
         db.session.commit()
