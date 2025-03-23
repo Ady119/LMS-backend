@@ -6,7 +6,8 @@ import pymysql
 pymysql.install_as_MySQLdb()
 
 class Config:
-    SECRET_KEY = os.getenv('SECRET_KEY', 'change_this_secret_key')  
+    SECRET_KEY = os.getenv('SECRET_KEY', 'change_this_secret_key')      
+    SQLALCHEMY_DATABASE_URI = "mysql+pymysql://root:@localhost/lms_db2"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     SQLALCHEMY_ENGINE_OPTIONS = {
@@ -36,12 +37,11 @@ class DevConfig(Config):
     DEBUG = True
     TESTING = False
     # Local database URI
-    SQLALCHEMY_DATABASE_URI = os.getenv("DEV_DATABASE_URI")
+    DEBUG = True
 
 class TestConfig(Config):
     """Testing Configuration"""
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
 
 
 class ProdConfig(Config):

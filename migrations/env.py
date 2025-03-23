@@ -1,9 +1,16 @@
+import os
 import logging
 from logging.config import fileConfig
-
 from flask import current_app
-
 from alembic import context
+from dotenv import load_dotenv
+
+load_dotenv()
+
+from app import db
+from models import *
+
+target_metadata = db.metadata
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

@@ -20,7 +20,6 @@ from models.quiz_attempts import QuizAttempt
 from models.quiz_attempts_answers import QuizAttemptAnswer
 from models.quiz_results import QuizResult
 from models.enrolments import Enrolment
-from models.assignment_submission import AssignmentSubmission
 
 # Lecturers' blueprint
 student_bp = Blueprint("student", __name__)
@@ -606,7 +605,7 @@ def submit_assignment():
             assignment_id=assignment.id,
             student_id=user_id,
             file_url=public_url,
-            original_file_name=filename
+            
         )
         db.session.add(submission)
         db.session.commit()

@@ -1,10 +1,11 @@
 import os
+from dotenv import load_dotenv
+load_dotenv()
 from flask import Flask
 from flask_mail import Mail
 from flask_cors import CORS
 from flask_migrate import Migrate
 from flask_session import Session
-from dotenv import load_dotenv
 from config import config_dict
 from models import db
 from routes.authentication import auth_bp
@@ -23,7 +24,7 @@ def home():
 
 env = os.environ.get("FLASK_ENV", "production")
 app.config.from_object(config_dict[env])
-
+print("Loaded DB URI:", app.config.get("SQLALCHEMY_DATABASE_URI"))
 CORS(app, resources={r"/*": {"origins": "https://lms-frontend-henna-sigma.vercel.app", "supports_credentials": True}})
 Session(app)
 
