@@ -48,6 +48,7 @@ class ProdConfig(Config):
     """Production Configuration (for Heroku deployment)"""
     DEBUG = False
 
+    # Use DATABASE_URL for Heroku MySQL config
     raw_db_url = os.getenv('DATABASE_URL')
 
     if raw_db_url:
@@ -60,6 +61,7 @@ class ProdConfig(Config):
         SQLALCHEMY_DATABASE_URI = f"{parsed_url.scheme}://{parsed_url.netloc}{parsed_url.path}"
     else:
         SQLALCHEMY_DATABASE_URI = os.getenv('JAWSDB_URL', 'sqlite:///:memory:')
+
 
 
 # Auto-detect environment based on the FLASK_ENV environment variable
