@@ -36,6 +36,20 @@ def upload_file(file, filename, folder="assignments"):
 
 
 
+def get_file_link(filename, folder="assignments"):
+    dropbox_path = f"/AchievED-LMS/{folder}/{filename}"
+
+    try:
+        shared_link = dbx.files_get_temporary_link(dropbox_path)
+        return shared_link.link
+
+    except dropbox.exceptions.ApiError as e:
+        print(f"Dropbox API Error: {e}")
+        return None
+
+    except Exception as e:
+        print(f" Unexpected Error: {e}")
+        return None
 def get_temporary_download_link(path):
     dropbox_path = f"/AchievED-LMS/{path}"
 
@@ -48,7 +62,6 @@ def get_temporary_download_link(path):
     except Exception as e:
         print(f"Unexpected Error: {e}")
         return None
-
 
 
 def delete_file_from_dropbox(dropbox_path):

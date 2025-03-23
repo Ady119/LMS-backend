@@ -5,7 +5,8 @@ from flask import Blueprint, jsonify, g, request, current_app, send_from_directo
 from sqlalchemy.orm import joinedload
 from utils.tokens import get_jwt_token, decode_jwt
 from utils.utils import login_required
-from utils.dropbox_service import delete_file_from_dropbox, get_file_link, upload_file  
+from utils.dropbox_service import delete_file_from_dropbox, get_file_link, upload_file, get_temporary_download_link
+ 
 
 import dropbox
 from models.users import User, db
@@ -412,7 +413,7 @@ def download_file(course_id, lesson_id, filename):
     dropbox_folder = f"course_{course_id}/lesson_{lesson_id}"
 
     # Get the file link from Dropbox
-    file_url = get_file_link(filename, folder=dropbox_folder)
+    file_url = get_temporary_download_link(filename, folder=dropbox_folder)
 
     if not file_url:
         return jsonify({"error": "File not found"}), 404
@@ -880,7 +881,7 @@ def download_assignment(filename):
     dropbox_folder = "assignments"
 
     try:
-        file_url = get_file_link(filename, folder=dropbox_folder)
+        file_url = get_temporary_download_link(filename, folder=dropbox_folder)
         
         if not file_url:
             print(f" ERROR: File not found in Dropbox: {filename}")
