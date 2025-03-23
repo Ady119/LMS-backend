@@ -6,7 +6,7 @@ class Degree(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False, unique=True)
-    institution_id = db.Column(db.Integer, db.ForeignKey("institutions.id"), nullable=False)
+    institution_id = db.Column(db.Integer, db.ForeignKey("institutions.id"), nullable=True)
     calendar_id = db.Column(db.Integer, db.ForeignKey("academic_calendars.id"), nullable=True)
     
     calendar = relationship("AcademicCalendar", back_populates="degrees")
