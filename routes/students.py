@@ -605,7 +605,8 @@ def submit_assignment():
         submission = AssignmentSubmission(
             assignment_id=assignment.id,
             student_id=user_id,
-            file_url=public_url
+            file_url=public_url,
+            original_file_name=filename
         )
         db.session.add(submission)
         db.session.commit()
