@@ -36,8 +36,7 @@ class DevConfig(Config):
     DEBUG = True
     TESTING = False
     # Local database URI
-    SQLALCHEMY_DATABASE_URI = os.getenv('DEV_DATABASE_URI', 'mysql+pymysql://root:@localhost/lms_db')
-
+    SQLALCHEMY_DATABASE_URI = os.getenv("DEV_DATABASE_URI")
 
 class TestConfig(Config):
     """Testing Configuration"""
