@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from utils.dropbox_service import get_temporary_download_link, delete_file_from_dropbox, upload_file, get
+from utils.dropbox_service import get_temporary_download_link, delete_file_from_dropbox, upload_file
 from werkzeug.utils import secure_filename, safe_join
 from flask import Blueprint, jsonify, g, request, current_app, send_from_directory, abort, send_file, redirect
 from sqlalchemy.orm import aliased, joinedload
