@@ -1,5 +1,6 @@
 import os
 from datetime import timedelta
+from sqlalchemy.pool import QueuePool
 from urllib.parse import urlparse
 import pymysql
 pymysql.install_as_MySQLdb()
@@ -8,6 +9,13 @@ class Config:
     SECRET_KEY = os.getenv('SECRET_KEY', 'change_this_secret_key')  
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "poolclass": QueuePool,
+        "pool_size": 5,
+        "max_overflow": 2,
+        "pool_timeout": 10
+    }
+    
     # Dropbox API Token (Set in Heroku)
     DROPBOX_ACCESS_TOKEN = os.getenv("DROPBOX_ACCESS_TOKEN")
 
