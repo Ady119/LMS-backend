@@ -25,6 +25,7 @@ from models.quiz_attempts_answers import QuizAttemptAnswer
 from models.quiz_results import QuizResult
 
 from models.assignment import Assignment
+from models.assignment_submission import AssignmentSubmission
 
 from models.exams import Exam
 
