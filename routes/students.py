@@ -151,20 +151,31 @@ def get_student_lesson_details(course_id, lesson_id):
         "title": lesson.title if lesson.title else "Untitled Lesson",
         "description": lesson.description if lesson.description is not None else "",
         "sections": [
+        {
+        "id": section.id,
+        "title": section.title,
+        "content_type": section.content_type,
+        "text_content": section.text_content if section.content_type == "text" else "",
+        "file_url": section.file_url if section.content_type == "file" else None,
+        "assignment": (
             {
-                "id": section.id,
-                "title": section.title,
-                "content_type": section.content_type,
-                "text_content": section.text_content if section.content_type == "text" else "",
-                "file_url": section.file_url if section.content_type == "file" else None,
-                "assignment": section.assignment.to_dict() if section.assignment else None,
-                "quiz": section.quiz.to_dict() if section.quiz else None,
-                "calendar_week_id": section.calendar_week_id,
-                "calendar_week_label": section.calendar_week.label if section.calendar_week else None,
-                "is_current_week": section.is_current_week,
+                **section.assignment.to_dict(),
+                "submissions": [
+                    s.to_dict() for s in AssignmentSubmission.query.filter_by(
+                        assignment_id=section.assignment.id,
+                        student_id=student_id
+                    ).all()
+                ]
             }
-            for section in sections
-        ],
+            if section.assignment else None
+        ),
+        "quiz": section.quiz.to_dict() if section.quiz else None,
+        "calendar_week_id": section.calendar_week_id,
+        "calendar_week_label": section.calendar_week.label if section.calendar_week else None,
+        "is_current_week": section.is_current_week,
+    }
+    for section in sections
+    ],
     }
 
     return jsonify(lesson_data), 200
