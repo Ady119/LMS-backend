@@ -686,4 +686,54 @@ def download_assignment_file(course_id, lesson_id, assignment_id, file_name):
     return redirect(file_url)
 
 
+@student_bp.route("/courses/<int:course_id>/lessons/<int:lesson_id>/assignments", methods=["GET"])
+@login_required
+def get_lesson_assignments(course_id, lesson_id):
+    user_id = g.user.get("user_id")
 
+    sections = LessonSection.query.filter_by(lesson_id=lesson_id).filter(LessonSection.assignment_id.isnot(None)).options(
+        joinedload(LessonSection.assignment)
+    ).all()
+
+    assignment_list = []
+    for section in sections:
+        assignment = section.assignment
+        if assignment:
+            submissions = AssignmentSubmission.query.filter_by(assignment_id=assignment.id, student_id=user_id).all()
+            assignment_list.append({
+                "id": assignment.id,
+                "title": assignment.title,
+                "description": assignment.description,
+                "due_date": assignment.due_date.isoformat() if assignment.due_date else None,
+                "section_title": section.title,
+                "submissions": [
+                    {
+                        "id": s.id,
+                        "file_name": os.path.basename(s.file_url),
+                        "submitted_at": s.submitted_at.isoformat()
+                    } for s in submissions
+                ]
+            })
+
+    return jsonify({"assignments": assignment_list}), 200
+
+
+@student_bp.route("/courses/<int:course_id>/lessons/<int:lesson_id>/quizzes", methods=["GET"])
+@login_required
+def get_lesson_quizzes(course_id, lesson_id):
+    user_id = g.user.get("user_id")
+
+    sections = LessonSection.query.filter_by(lesson_id=lesson_id).filter(LessonSection.quiz_id.isnot(None)).options(
+        joinedload(LessonSection.quiz)
+    ).all()
+
+    quiz_list = []
+    for section in sections:
+        quiz = section.quiz
+        if quiz:
+            quiz_list.append({
+                **quiz.to_dict(),
+                "section_title": section.title
+            })
+
+    return jsonify({"quizzes": quiz_list}), 200
