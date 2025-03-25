@@ -38,13 +38,14 @@ def get_engine_url():
 # target_metadata = mymodel.Base.metadata
 import os
 
-database_url = os.environ.get("DATABASE_URL")
-
-if database_url:
-    config.set_main_option("sqlalchemy.url", database_url)
+if os.getenv("FLASK_ENV") == "production":
+    config.set_main_option(
+        "sqlalchemy.url",
+        "mysql+pymysql://ikfr0iiwm23lv1aw:nynveksk37lgidg5@u3y93bv513l7zv6o.chr7pe7iynqr.eu-west-1.rds.amazonaws.com:3306/xlstxxywz1devzhu"
+    )
 else:
-    config.set_main_option("sqlalchemy.url", get_engine_url())
-target_db = current_app.extensions['migrate'].db
+    config.set_main_option('sqlalchemy.url', get_engine_url())
+
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
