@@ -155,11 +155,11 @@ def get_student_lesson_details(course_id, lesson_id):
             total_attempts = QuizAttempt.query.filter_by(student_id=student_id, quiz_id=quiz.id).count()
             max_attempts = quiz.max_attempts
             attempts_left = max_attempts - total_attempts if max_attempts > total_attempts else 0
-
+            print(f"Quiz ID: {quiz.id} | Total Attempts: {total_attempts} | Max Attempts: {max_attempts} | Attempts Left: {attempts_left}")
             # Check if quiz  submitted
             latest_attempt = QuizAttempt.query.filter_by(student_id=student_id, quiz_id=quiz.id).order_by(QuizAttempt.completed_at.desc()).first()
             has_submitted = bool(latest_attempt)
-
+            print(f"Quiz ID: {quiz.id} | Has Submitted: {has_submitted}")
             quizzes[quiz.id] = {
                 "attempts_left": attempts_left,
                 "has_submitted": has_submitted,
@@ -451,7 +451,10 @@ def get_quiz_results(quiz_id):
 
     # Ensure feedback is always a valid list
     feedback = attempt.answers_temp if attempt.answers_temp else []
-
+     # Log the relevant data to check the values
+    print(f"Attempt Data: {attempt.to_dict()}")
+    print(f"Attempts Used: {attempt.attempts_used}")
+    print(f"Max Attempts: {attempt.quiz.max_attempts}")
     response_data = {
         "score": attempt.score,
         "pass_status": attempt.pass_status,
