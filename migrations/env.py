@@ -46,6 +46,7 @@ if os.getenv("FLASK_ENV") == "production":
 else:
     config.set_main_option('sqlalchemy.url', get_engine_url())
 
+target_db = current_app.extensions['migrate'].db
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
