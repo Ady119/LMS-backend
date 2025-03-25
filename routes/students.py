@@ -341,7 +341,7 @@ def submit_quiz(quiz_id):
 
     # Grade Multiple Choice
     for question in quiz.multiple_choice_questions:
-        user_answer = answers.get(str(question.id), "").strip().lower()
+        user_answer = answers.get(f"mcq-{question.id}", "").strip().lower()
         correct_answer = question.correct_answer.strip().lower()
         is_correct = user_answer == correct_answer
 
@@ -360,7 +360,7 @@ def submit_quiz(quiz_id):
 
     # Grade Short Answer
     for question in quiz.short_answer_questions:
-        user_answer = answers.get(str(question.id), "").strip().lower()
+        user_answer = answers.get(f"short-{question.id}", "").strip().lower()
         correct_answer = question.correct_answer.strip().lower()
         is_correct = user_answer == correct_answer
 
@@ -446,7 +446,7 @@ def get_quiz_results(quiz_id):
 @student_bp.route("/quiz/<int:quiz_id>/auto-submit", methods=["POST"])
 @login_required
 def auto_submit_quiz(quiz_id):
-    """Automatically submit the quiz if the student loses connection or time expires"""
+    """Automatically submit the quiz if the student loses connection or time expires."""
     data = request.get_json()
     student_id = g.user.get("user_id")
     answers = data.get("answers", {})
@@ -455,12 +455,10 @@ def auto_submit_quiz(quiz_id):
     if not quiz:
         return jsonify({"error": "Quiz not found"}), 404
 
-    # Check if they already submitted
     existing_attempts = QuizAttempt.query.filter_by(student_id=student_id, quiz_id=quiz_id).count()
     if existing_attempts >= quiz.max_attempts:
         return jsonify({"error": "No attempts left"}), 403
 
-    # Create attempt NOW
     attempt = QuizAttempt(
         student_id=student_id,
         quiz_id=quiz_id,
@@ -470,21 +468,58 @@ def auto_submit_quiz(quiz_id):
     db.session.add(attempt)
     db.session.flush()
 
-    unanswered_questions = len(quiz.multiple_choice_questions) + len(quiz.short_answer_questions) - len(answers)
-    score = (len(answers) / (unanswered_questions + len(answers))) * 100 if unanswered_questions else 0
-    passed = score >= quiz.passing_score
+    score = 0
+    total_questions = len(quiz.multiple_choice_questions) + len(quiz.short_answer_questions)
+    feedback = []
+    needs_review = False
 
-    attempt.score = score
+    # Grade Multiple Choice
+    for question in quiz.multiple_choice_questions:
+        user_answer = answers.get(str(question.id), "").strip().lower()
+        correct_answer = question.correct_answer.strip().lower()
+        is_correct = user_answer == correct_answer
+        if is_correct:
+            score += 1
+        feedback.append({
+            "question_id": question.id,
+            "submitted_answer": user_answer,
+            "correct_answer": correct_answer,
+            "is_correct": is_correct
+        })
+
+    # Grade Short Answer
+    for question in quiz.short_answer_questions:
+        user_answer = answers.get(str(question.id), "").strip().lower()
+        correct_answer = question.correct_answer.strip().lower()
+        is_correct = user_answer == correct_answer
+        if is_correct:
+            score += 1
+        else:
+            needs_review = True
+        feedback.append({
+            "question_id": question.id,
+            "submitted_answer": user_answer,
+            "correct_answer": correct_answer,
+            "is_correct": is_correct
+        })
+
+    percentage_score = (score / total_questions) * 100 if total_questions > 0 else 0
+    passed = percentage_score >= quiz.passing_score
+
+    attempt.score = percentage_score
     attempt.pass_status = passed
-    attempt.needs_review = False
+    attempt.needs_review = needs_review
+    attempt.answers_temp = feedback
 
     db.session.commit()
 
     return jsonify({
-        "message": "Quiz auto-submitted due to timeout",
-        "score": score,
+        "message": "Quiz auto-submitted due to timeout.",
+        "score": percentage_score,
         "passed": passed,
+        "needs_review": needs_review
     }), 200
+
 
 @student_bp.route("/quizzes/all", methods=["GET"])
 @login_required
