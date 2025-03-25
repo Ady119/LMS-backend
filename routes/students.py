@@ -9,6 +9,8 @@ from urllib.parse import unquote
 from utils.tokens import get_jwt_token, decode_jwt
 from utils.utils import login_required
 from models.users import User, db
+from models.section_progress import SectionProgress
+from models.badges import Badge
 from models.courses import Course
 from models.course_lessons import Lesson
 from models.lesson_section import LessonSection
@@ -387,6 +389,17 @@ def submit_quiz(quiz_id):
     attempt.answers_temp = feedback
 
     db.session.commit()
+    
+    # auto mark section complete 
+    section = LessonSection.query.filter_by(quiz_id=quiz_id).first()
+    if section and section.is_active:
+        existing_progress = SectionProgress.query.filter_by(
+            student_id=student_id,
+            section_id=section.id
+        ).first()
+        if not existing_progress:
+            db.session.add(SectionProgress(student_id=student_id, section_id=section.id))
+            db.session.commit()
 
     return jsonify({
         "score": percentage_score,
@@ -613,14 +626,19 @@ def submit_assignment():
             db.session.delete(old_submission)
             db.session.commit()
 
-        submission = AssignmentSubmission(
-            assignment_id=assignment.id,
-            student_id=user_id,
-            file_url=public_url,
-            
-        )
+            submission = AssignmentSubmission(
+                assignment_id=assignment.id,
+                student_id=user_id,
+                file_url=public_url,
+            )
         db.session.add(submission)
         db.session.commit()
+        
+        # auto mark section complete 
+        already_completed = SectionProgress.query.filter_by(student_id=user_id, section_id=lesson_section.id).first()
+        if not already_completed and lesson_section.is_active:
+            db.session.add(SectionProgress(student_id=user_id, section_id=lesson_section.id))
+            db.session.commit()
 
         return jsonify({"message": "Assignment submitted successfully!", "file_url": public_url}), 200
 
@@ -696,7 +714,7 @@ def download_assignment_file(course_id, lesson_id, assignment_id, file_name):
 
     return redirect(file_url)
 
-
+#Fetch lesson assignments
 @student_bp.route("/courses/<int:course_id>/lessons/<int:lesson_id>/assignments", methods=["GET"])
 @login_required
 def get_lesson_assignments(course_id, lesson_id):
@@ -748,3 +766,36 @@ def get_lesson_quizzes(course_id, lesson_id):
             })
 
     return jsonify({"quizzes": quiz_list}), 200
+
+#Mark a section complete
+@student_bp.route("/sections/<int:section_id>/complete", methods=["POST"])
+@login_required
+def mark_section_complete(section_id):
+    user_id = g.user.get("user_id")
+    section = LessonSection.query.get(section_id)
+
+    if not section or not section.is_active:
+        return jsonify({"error": "Section is not available."}), 403
+
+    existing = SectionProgress.query.filter_by(student_id=user_id, section_id=section_id).first()
+    if existing:
+        return jsonify({"message": "Already marked as completed."}), 200
+
+    progress = SectionProgress(
+        student_id=user_id,
+        section_id=section_id,
+        completed_at=datetime.utcnow()
+    )
+    db.session.add(progress)
+    db.session.commit()
+    return jsonify({"message": "Section marked as completed."}), 201
+
+#Fetch compleded sections
+@student_bp.route("/sections/completed", methods=["GET"])
+@login_required
+def get_completed_sections():
+    user_id = g.user.get("user_id")
+    progress = SectionProgress.query.filter_by(student_id=user_id).all()
+    completed_ids = [p.section_id for p in progress]
+    return jsonify({"completed_sections": completed_ids})
+
