@@ -6,6 +6,9 @@ db = SQLAlchemy()
 # Import models
 from models.users import User
 
+from models.section_progress import SectionProgress
+from models.badges import Badge, UserBadge
+
 from models.institutions import Institution
 from models.degrees import Degree 
 from models.academic_calendar import AcademicCalendar

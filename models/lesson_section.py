@@ -1,8 +1,7 @@
 from models import db
-from datetime import date
+from datetime import date, datetime
 from sqlalchemy.orm import relationship
-from sqlalchemy import CheckConstraint, func
-
+from sqlalchemy import CheckConstraint
 
 class LessonSection(db.Model):
     __tablename__ = "lesson_section"
@@ -17,12 +16,12 @@ class LessonSection(db.Model):
     file_url = db.Column(db.String(255), nullable=True)  
     order = db.Column(db.Integer, nullable=False, default=1)  
     calendar_week_id = db.Column(db.Integer, db.ForeignKey("calendar_weeks.id"), nullable=True)
-    
+
     @staticmethod
     def get_next_order(lesson_id):
         last_section = LessonSection.query.filter_by(lesson_id=lesson_id).order_by(LessonSection.order.desc()).first()
         return (last_section.order + 1) if last_section else 1
-    
+
     @property
     def is_active(self):
         if not self.calendar_week:
@@ -51,7 +50,14 @@ class LessonSection(db.Model):
     def __repr__(self):
         return f"<LessonSection {self.title} (Lesson ID {self.lesson_id})>"
 
-    def to_dict(self):
+    def to_dict(self, student_id=None):
+        from models import SectionProgress
+
+        is_completed = False
+        if student_id:
+            progress = SectionProgress.query.filter_by(student_id=student_id, section_id=self.id).first()
+            is_completed = bool(progress)
+
         return {
             "id": self.id,
             "lesson_id": self.lesson_id,
@@ -66,6 +72,7 @@ class LessonSection(db.Model):
             "calendar_week_label": self.calendar_week.label if self.calendar_week else None,
             "is_active": self.is_active,
             "is_current_week": self.is_current_week,
+            "is_completed": is_completed,
             "calendar_week": {
                 "id": self.calendar_week.id,
                 "label": self.calendar_week.label,
@@ -74,5 +81,3 @@ class LessonSection(db.Model):
                 "is_break": self.calendar_week.is_break
             } if self.calendar_week else None
         }
-
-
