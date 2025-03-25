@@ -230,7 +230,6 @@ def download_student_file(course_id, lesson_id, filename):
 @student_bp.route("/quiz/<int:quiz_id>/details", methods=["GET"])
 @login_required
 def get_quiz_details(quiz_id):
-    """Fetch quiz details including total questions, attempts left, and latest attempt ID."""
     student_id = g.user.get("user_id")
 
     quiz = Quiz.query.get(quiz_id)
