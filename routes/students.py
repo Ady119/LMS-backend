@@ -117,7 +117,6 @@ def get_student_lessons(course_id):
 
     return jsonify({"lessons": [lesson.to_dict() for lesson in lessons]}), 200
 
-#Fetch lesson details 
 @student_bp.route("/courses/<int:course_id>/lessons/<int:lesson_id>/content", methods=["GET"])
 @login_required
 def get_student_lesson_details(course_id, lesson_id):
@@ -126,6 +125,7 @@ def get_student_lesson_details(course_id, lesson_id):
     if not student_id:
         return jsonify({"error": "Invalid token"}), 401
 
+    # Check if student is directly enrolled in the course
     enrolled = db.session.query(Enrolment).join(
         Course, Enrolment.degree_id == Course.degree_id
     ).filter(
@@ -136,6 +136,7 @@ def get_student_lesson_details(course_id, lesson_id):
     if not enrolled:
         return jsonify({"error": "Unauthorized or course not found"}), 403
 
+    # Fetch the lesson
     lesson = Lesson.query.filter_by(id=lesson_id, course_id=course_id).first()
     if not lesson:
         return jsonify({"error": "Lesson not found in this course"}), 404
@@ -147,62 +148,39 @@ def get_student_lesson_details(course_id, lesson_id):
         .all()
     )
 
-    quizzes = {}
-    for section in sections:
-        if section.quiz:
-            quiz = section.quiz
-            # Get attempts left and if submitted
-            total_attempts = QuizAttempt.query.filter_by(student_id=student_id, quiz_id=quiz.id).count()
-            max_attempts = quiz.max_attempts
-            attempts_left = max_attempts - total_attempts if max_attempts > total_attempts else 0
-            print(f"Quiz ID: {quiz.id} | Total Attempts: {total_attempts} | Max Attempts: {max_attempts} | Attempts Left: {attempts_left}")
-            # Check if quiz  submitted
-            latest_attempt = QuizAttempt.query.filter_by(student_id=student_id, quiz_id=quiz.id).order_by(QuizAttempt.completed_at.desc()).first()
-            has_submitted = bool(latest_attempt)
-            print(f"Quiz ID: {quiz.id} | Has Submitted: {has_submitted}")
-            quizzes[quiz.id] = {
-                "attempts_left": attempts_left,
-                "has_submitted": has_submitted,
-                "deadline": quiz.deadline,
-            }
-
     lesson_data = {
         "id": lesson.id,
         "title": lesson.title if lesson.title else "Untitled Lesson",
         "description": lesson.description if lesson.description is not None else "",
         "sections": [
+        {
+        "id": section.id,
+        "title": section.title,
+        "content_type": section.content_type,
+        "text_content": section.text_content if section.content_type == "text" else "",
+        "file_url": section.file_url if section.content_type == "file" else None,
+        "assignment": (
             {
-                "id": section.id,
-                "title": section.title,
-                "content_type": section.content_type,
-                "text_content": section.text_content if section.content_type == "text" else "",
-                "file_url": section.file_url if section.content_type == "file" else None,
-                "assignment": (
-                    {
-                        **section.assignment.to_dict(),
-                        "submissions": [
-                            s.to_dict() for s in AssignmentSubmission.query.filter_by(
-                                assignment_id=section.assignment.id,
-                                student_id=student_id
-                            ).all()
-                        ]
-                    }
-                    if section.assignment else None
-                ),
-                "quiz": {
-                    **(section.quiz.to_dict() if section.quiz else {}),
-                    **quizzes.get(section.quiz.id, {}),
-                } if section.quiz else None,
-                "calendar_week_id": section.calendar_week_id,
-                "calendar_week_label": section.calendar_week.label if section.calendar_week else None,
-                "is_current_week": section.is_current_week,
+                **section.assignment.to_dict(),
+                "submissions": [
+                    s.to_dict() for s in AssignmentSubmission.query.filter_by(
+                        assignment_id=section.assignment.id,
+                        student_id=student_id
+                    ).all()
+                ]
             }
-            for section in sections
-        ],
+            if section.assignment else None
+        ),
+        "quiz": section.quiz.to_dict() if section.quiz else None,
+        "calendar_week_id": section.calendar_week_id,
+        "calendar_week_label": section.calendar_week.label if section.calendar_week else None,
+        "is_current_week": section.is_current_week,
+    }
+    for section in sections
+    ],
     }
 
     return jsonify(lesson_data), 200
-
 
 
 #download endpoin
@@ -451,10 +429,7 @@ def get_quiz_results(quiz_id):
 
     # Ensure feedback is always a valid list
     feedback = attempt.answers_temp if attempt.answers_temp else []
-     # Log the relevant data to check the values
-    print(f"Attempt Data: {attempt.to_dict()}")
-    print(f"Attempts Used: {attempt.attempts_used}")
-    print(f"Max Attempts: {attempt.quiz.max_attempts}")
+
     response_data = {
         "score": attempt.score,
         "pass_status": attempt.pass_status,
