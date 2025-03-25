@@ -626,11 +626,12 @@ def submit_assignment():
             db.session.delete(old_submission)
             db.session.commit()
 
-            submission = AssignmentSubmission(
-                assignment_id=assignment.id,
-                student_id=user_id,
-                file_url=public_url,
-            )
+        submission = AssignmentSubmission(
+            assignment_id=assignment.id,
+            student_id=user_id,
+            file_url=public_url,
+        )
+            
         db.session.add(submission)
         db.session.commit()
         
