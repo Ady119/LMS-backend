@@ -151,13 +151,13 @@ def get_student_lesson_details(course_id, lesson_id):
     for section in sections:
         if section.quiz:
             quiz = section.quiz
-            # Get attempts left and if submitted
-            total_attempts = QuizAttempt.query.filter_by(student_id=student_id, quiz_id=quiz.id).count()
+            # Get attempts used and if submitted
+            attempts_used = db.session.query(QuizAttempt).filter_by(student_id=student_id, quiz_id=quiz.id).count()
             max_attempts = quiz.max_attempts
-            attempts_left = max_attempts - total_attempts if max_attempts > total_attempts else 0
+            attempts_left = max_attempts - attempts_used if max_attempts > attempts_used else 0
 
-            # Check if quiz  submitted
-            latest_attempt = QuizAttempt.query.filter_by(student_id=student_id, quiz_id=quiz.id).order_by(QuizAttempt.completed_at.desc()).first()
+            # Check if quiz was submitted
+            latest_attempt = db.session.query(QuizAttempt).filter_by(student_id=student_id, quiz_id=quiz.id).order_by(QuizAttempt.completed_at.desc()).first()
             has_submitted = bool(latest_attempt)
 
             quizzes[quiz.id] = {
