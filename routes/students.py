@@ -847,17 +847,9 @@ def get_student_dashboard():
 
     from models import (
         Enrolment, Course, Lesson, LessonSection, SectionProgress, Degree,
-        QuizAttempt, AssignmentSubmission
-    )
-    # lecturer for the course
-    lecturer = (
-        db.session.query(User.full_name)
-        .join(CourseLecturer, CourseLecturer.lecturer_id == User.id)
-        .filter(CourseLecturer.course_id == course.id)
-        .first()
+        QuizAttempt, AssignmentSubmission, CourseLecturer, User
     )
 
-    lecturer_name = lecturer[0] if lecturer else "N/A"
     # Get enrolled degrees
     enrolled_degrees = (
         db.session.query(Degree)
@@ -875,16 +867,20 @@ def get_student_dashboard():
         .all()
     )
 
-    # Total courses
     total_courses = len(enrolled_courses)
-
-    # quizzes and assignments submitted
     total_quizzes_attempted = db.session.query(QuizAttempt).filter_by(student_id=student_id).count()
     total_assignments_submitted = db.session.query(AssignmentSubmission).filter_by(student_id=student_id).count()
 
-    # course progress
     course_stats = []
     for course in enrolled_courses:
+        lecturer = (
+            db.session.query(User.full_name)
+            .join(CourseLecturer, CourseLecturer.lecturer_id == User.id)
+            .filter(CourseLecturer.course_id == course.id)
+            .first()
+        )
+        lecturer_name = lecturer[0] if lecturer else "N/A"
+
         section_ids = (
             db.session.query(LessonSection.id)
             .join(Lesson, Lesson.id == LessonSection.lesson_id)
@@ -911,7 +907,6 @@ def get_student_dashboard():
             "lecturer_name": lecturer_name,
             "progress": round(progress, 2)
         })
-
 
     return jsonify({
         "total_courses": total_courses,
