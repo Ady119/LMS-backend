@@ -840,10 +840,6 @@ def get_completed_sections():
 def get_student_dashboard():
     student_id = g.user.get("user_id")
 
-    # Ensure user ID is present
-    if not student_id:
-        return jsonify({"error": "Unauthorized"}), 403
-
     # Total Courses
     total_courses = db.session.query(Course).join(Enrolment).filter(Enrolment.student_id == student_id).count()
 
@@ -867,4 +863,3 @@ def get_student_dashboard():
     }
 
     return jsonify(stats_data), 200
-
