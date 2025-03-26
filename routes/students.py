@@ -841,19 +841,53 @@ def get_student_dashboard():
     student_id = g.user.get("user_id")
     if not student_id:
         return jsonify({"error": "User not authenticated"}), 403
-    # Fetch data
-    total_courses = db.session.query(Course).join(Enrolment).filter(Enrolment.student_id == student_id).count()
-    total_quizzes_attempted = db.session.query(QuizAttempt).filter(QuizAttempt.student_id == student_id).count()
-    total_assignments_submitted = db.session.query(AssignmentSubmission).filter(AssignmentSubmission.student_id == student_id).count()
-    total_assignments = db.session.query(AssignmentSubmission).join(Assignment).filter(Assignment.student_id == student_id).count()
-    assignments_completed = db.session.query(AssignmentSubmission).filter(AssignmentSubmission.student_id == student_id, AssignmentSubmission.file_url.isnot(None)).count()
 
-    progress_percentage = (assignments_completed / total_assignments * 100) if total_assignments > 0 else 0
+    # Total courses the student is enrolled in
+    total_courses = (
+        db.session.query(Course)
+        .join(Degree, Course.degree_id == Degree.id)
+        .join(Enrolment, Enrolment.degree_id == Degree.id)
+        .filter(Enrolment.student_id == student_id)
+        .count()
+    )
+
+    # Total quizzes attempted
+    total_quizzes_attempted = (
+        db.session.query(QuizAttempt)
+        .filter(QuizAttempt.student_id == student_id)
+        .count()
+    )
+
+    # Total assignment submissions
+    total_assignments_submitted = (
+        db.session.query(AssignmentSubmission)
+        .filter(AssignmentSubmission.student_id == student_id)
+        .count()
+    )
+
+    # Total assignments assigned via enrolled courses
+    total_assignments = (
+        db.session.query(Assignment)
+        .join(LessonSection, Assignment.id == LessonSection.assignment_id)
+        .join(Lesson, Lesson.id == LessonSection.lesson_id)
+        .join(Course, Course.id == Lesson.course_id)
+        .join(Degree, Degree.id == Course.degree_id)
+        .join(Enrolment, Enrolment.degree_id == Degree.id)
+        .filter(Enrolment.student_id == student_id)
+        .count()
+    )
+
+    # Progress percentage
+    progress_percentage = (
+        (total_assignments_submitted / total_assignments) * 100
+        if total_assignments > 0 else 0
+    )
 
     stats_data = {
         "total_courses": total_courses,
         "total_quizzes_attempted": total_quizzes_attempted,
         "total_assignments_submitted": total_assignments_submitted,
+        "total_assignments": total_assignments,
         "progress_percentage": round(progress_percentage, 2),
     }
 
