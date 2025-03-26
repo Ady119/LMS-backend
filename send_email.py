@@ -10,8 +10,8 @@ load_dotenv()
 # Get the SMTP credentials from the environment
 MAILTRAP_HOST = "live.smtp.mailtrap.io"
 MAILTRAP_PORT = 587
-MAILTRAP_USERNAME = "smtp@mailtrap.io"
-MAILTRAP_PASSWORD = "c4c7dbed2a95a00ade520cdbabc076ad"
+MAILTRAP_USERNAME =  os.getenv("MAILTRAP_USERNAME")
+MAILTRAP_PASSWORD = os.getenv("MAILTRAP_PASSWORD")
 
 # Create the email
 sender_email = "hello@demomailtrap.com"
