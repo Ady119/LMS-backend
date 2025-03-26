@@ -1,11 +1,14 @@
+import os
 import requests
 from urllib.parse import urlencode
+from dotenv import load_dotenv
 
-# Replace these with your actual values
-APP_KEY = "j6zbrgkqj7ord9t"
-APP_SECRET = "efmzxfaph03cxz9"
-AUTH_CODE = "m-Zzy48ZEPIAAAAAAAAAUIcvtrRnHi8j3f8l8bQR82I"
-REDIRECT_URI = "http://localhost:5000/oauth/callback"
+load_dotenv()  # Loads values from .env
+
+APP_KEY = os.getenv("DROPBOX_APP_KEY")
+APP_SECRET = os.getenv("DROPBOX_APP_SECRET")
+AUTH_CODE = os.getenv("DROPBOX_AUTH_CODE")
+REDIRECT_URI = os.getenv("DROPBOX_REDIRECT_URI")
 
 response = requests.post(
     "https://api.dropboxapi.com/oauth2/token",
@@ -19,4 +22,3 @@ response = requests.post(
 )
 
 print(response.json())
-
