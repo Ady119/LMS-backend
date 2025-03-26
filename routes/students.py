@@ -840,19 +840,20 @@ def get_completed_sections():
 def get_student_dashboard():
     student_id = g.user.get("user_id")
 
-    # Total Courses
+    # Courses Enrolled
     total_courses = db.session.query(Course).join(Enrolment).filter(Enrolment.student_id == student_id).count()
 
     # Quizzes Attempted
     total_quizzes_attempted = db.session.query(QuizAttempt).filter(QuizAttempt.student_id == student_id).count()
 
-    # Assignments Submitted
+    # Total Assignments Submitted
     total_assignments_submitted = db.session.query(AssignmentSubmission).filter(AssignmentSubmission.student_id == student_id).count()
 
-    # Total Progress
+    # Total Assignments
     total_assignments = db.session.query(AssignmentSubmission).join(Assignment).filter(Assignment.student_id == student_id).count()
     assignments_completed = db.session.query(AssignmentSubmission).filter(AssignmentSubmission.student_id == student_id, AssignmentSubmission.file_url.isnot(None)).count()
 
+    #Progress Percentage
     progress_percentage = (assignments_completed / total_assignments * 100) if total_assignments > 0 else 0
 
     stats_data = {
