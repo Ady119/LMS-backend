@@ -843,10 +843,10 @@ def get_student_dashboard():
     # Total Courses
     total_courses = db.session.query(Course).join(Enrolment).filter(Enrolment.student_id == student_id).count()
 
-    # Total Quizzes Attempted
+    # Quizzes Attempted
     total_quizzes_attempted = db.session.query(QuizAttempt).filter(QuizAttempt.student_id == student_id).count()
 
-    # Total Assignments Submitted
+    # Assignments Submitted
     total_assignments_submitted = db.session.query(AssignmentSubmission).filter(AssignmentSubmission.student_id == student_id).count()
 
     # Total Progress
@@ -855,12 +855,12 @@ def get_student_dashboard():
 
     progress_percentage = (assignments_completed / total_assignments * 100) if total_assignments > 0 else 0
 
-
-    dashboard_data = {
+    stats_data = {
         "total_courses": total_courses,
         "total_quizzes_attempted": total_quizzes_attempted,
         "total_assignments_submitted": total_assignments_submitted,
         "progress_percentage": round(progress_percentage, 2),
     }
 
-    return jsonify(dashboard_data), 200
+    return jsonify(stats_data), 200
+
