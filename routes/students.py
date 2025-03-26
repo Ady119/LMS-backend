@@ -840,16 +840,10 @@ def get_completed_sections():
 def get_student_dashboard():
     student_id = g.user.get("user_id")
 
-    # Total Courses
+    # Fetch data
     total_courses = db.session.query(Course).join(Enrolment).filter(Enrolment.student_id == student_id).count()
-
-    # Quizzes Attempted
     total_quizzes_attempted = db.session.query(QuizAttempt).filter(QuizAttempt.student_id == student_id).count()
-
-    # Assignments Submitted
     total_assignments_submitted = db.session.query(AssignmentSubmission).filter(AssignmentSubmission.student_id == student_id).count()
-
-    # Total Progress
     total_assignments = db.session.query(AssignmentSubmission).join(Assignment).filter(Assignment.student_id == student_id).count()
     assignments_completed = db.session.query(AssignmentSubmission).filter(AssignmentSubmission.student_id == student_id, AssignmentSubmission.file_url.isnot(None)).count()
 
@@ -863,3 +857,4 @@ def get_student_dashboard():
     }
 
     return jsonify(stats_data), 200
+
