@@ -848,83 +848,56 @@ def get_student_dashboard():
         QuizAttempt, AssignmentSubmission
     )
 
-    # Total courses
-    total_courses = (
-        db.session.query(Course)
-        .join(Degree)
-        .join(Enrolment, Enrolment.degree_id == Degree.id)
-        .filter(Enrolment.student_id == student_id)
-        .count()
-    )
-
-    # Total quizzes attempted
-    total_quizzes_attempted = (
-        db.session.query(QuizAttempt)
-        .filter_by(student_id=student_id)
-        .count()
-    )
-
-    # Total assignment submissions
-    total_assignments_submitted = (
-        db.session.query(AssignmentSubmission)
-        .filter_by(student_id=student_id)
-        .count()
-    )
-
-    # Get all enrolled courses with progress
-    enrolled = (
-        db.session.query(Course, Degree)
-        .join(Degree, Course.degree_id == Degree.id)
-        .join(Lesson, Lesson.course_id == Course.id)
-        .join(LessonSection, LessonSection.lesson_id == Lesson.id)
+    # Get enrolled degrees
+    enrolled_degrees = (
+        db.session.query(Degree)
         .join(Enrolment, Enrolment.degree_id == Degree.id)
         .filter(Enrolment.student_id == student_id)
         .all()
     )
 
-    course_progress = {}
-    for course, degree in enrolled:
-        course_id = course.id
-        if course_id not in course_progress:
-            course_progress[course_id] = {
-                "course_id": course.id,
-                "course_title": course.title,
-                "degree_name": degree.name,
-                "total_sections": 0,
-                "completed_sections": 0,
-            }
+    # Get courses
+    enrolled_courses = (
+        db.session.query(Course)
+        .join(Degree, Course.degree_id == Degree.id)
+        .filter(Course.degree_id.in_([d.id for d in enrolled_degrees]))
+        .distinct()
+        .all()
+    )
 
-        # Count sections
-        sections = (
+    # Total courses
+    total_courses = len(enrolled_courses)
+
+    # quizzes and assignments submitted
+    total_quizzes_attempted = db.session.query(QuizAttempt).filter_by(student_id=student_id).count()
+    total_assignments_submitted = db.session.query(AssignmentSubmission).filter_by(student_id=student_id).count()
+
+    # course progress
+    course_stats = []
+    for course in enrolled_courses:
+        section_ids = (
             db.session.query(LessonSection.id)
             .join(Lesson, Lesson.id == LessonSection.lesson_id)
-            .filter(Lesson.course_id == course_id)
+            .filter(Lesson.course_id == course.id)
             .all()
         )
-        section_ids = [s.id for s in sections]
-        course_progress[course_id]["total_sections"] = len(section_ids)
+        section_ids = [s.id for s in section_ids]
+        total_sections = len(section_ids)
 
-        # Count completed sections
         completed = (
             db.session.query(SectionProgress)
             .filter(
                 SectionProgress.student_id == student_id,
                 SectionProgress.section_id.in_(section_ids)
-            )
-            .count()
+            ).count()
         )
-        course_progress[course_id]["completed_sections"] = completed
 
-    # Finalize progress calculations
-    course_stats = []
-    for data in course_progress.values():
-        total = data["total_sections"]
-        completed = data["completed_sections"]
-        progress = (completed / total * 100) if total else 0
+        progress = (completed / total_sections * 100) if total_sections else 0
+
         course_stats.append({
-            "course_id": data["course_id"],
-            "course_title": data["course_title"],
-            "degree_name": data["degree_name"],
+            "course_id": course.id,
+            "course_title": course.title,
+            "degree_name": course.degree.name if course.degree else "N/A",
             "progress": round(progress, 2)
         })
 
@@ -934,4 +907,3 @@ def get_student_dashboard():
         "total_assignments_submitted": total_assignments_submitted,
         "course_stats": course_stats
     }), 200
-
