@@ -839,7 +839,8 @@ def get_completed_sections():
 @login_required
 def get_student_dashboard():
     student_id = g.user.get("user_id")
-
+    if not student_id:
+        return jsonify({"error": "User not authenticated"}), 403
     # Fetch data
     total_courses = db.session.query(Course).join(Enrolment).filter(Enrolment.student_id == student_id).count()
     total_quizzes_attempted = db.session.query(QuizAttempt).filter(QuizAttempt.student_id == student_id).count()
