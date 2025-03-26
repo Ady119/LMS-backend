@@ -13,6 +13,8 @@ from models.section_progress import SectionProgress
 from models.badges import Badge
 from models.degrees import Degree
 from models.courses import Course
+from models.course_lecturers import CourseLecturer
+
 from models.course_lessons import Lesson
 from models.lesson_section import LessonSection
 from models.assignment import Assignment
@@ -847,7 +849,15 @@ def get_student_dashboard():
         Enrolment, Course, Lesson, LessonSection, SectionProgress, Degree,
         QuizAttempt, AssignmentSubmission
     )
+    # lecturer for the course
+    lecturer = (
+        db.session.query(User.full_name)
+        .join(CourseLecturer, CourseLecturer.lecturer_id == User.id)
+        .filter(CourseLecturer.course_id == course.id)
+        .first()
+    )
 
+    lecturer_name = lecturer[0] if lecturer else "N/A"
     # Get enrolled degrees
     enrolled_degrees = (
         db.session.query(Degree)
@@ -898,8 +908,10 @@ def get_student_dashboard():
             "course_id": course.id,
             "course_title": course.title,
             "degree_name": course.degree.name if course.degree else "N/A",
+            "lecturer_name": lecturer_name,
             "progress": round(progress, 2)
         })
+
 
     return jsonify({
         "total_courses": total_courses,
