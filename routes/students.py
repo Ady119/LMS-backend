@@ -11,6 +11,7 @@ from utils.utils import login_required
 from models.users import User, db
 from models.section_progress import SectionProgress
 from models.badges import Badge
+from models.degrees import Degree
 from models.courses import Course
 from models.course_lessons import Lesson
 from models.lesson_section import LessonSection
