@@ -879,7 +879,7 @@ def get_student_dashboard():
             .filter(CourseLecturer.course_id == course.id)
             .first()
         )
-        lecturer_name = lecturer[0] if lecturer else "N/A"
+        lecturer_name = lecturer[0] if lecturer else "To be confirmed."
 
         section_ids = (
             db.session.query(LessonSection.id)
