@@ -389,12 +389,17 @@ def submit_quiz(quiz_id):
     attempt.pass_status = passed
     attempt.needs_review = needs_review
     attempt.answers_temp = feedback
+    # new badges
+    new_badges = []
 
-    db.session.commit()
-    evaluate_quiz_badges(student_id)
+    #  Badge evaluation before commit
+    evaluate_quiz_badges(student_id, new_badges)
+    if passed:
+        award_badge(student_id, "Quiz Passed", new_badges)
     if percentage_score == 100:
-       award_badge(student_id, "Perfect Quiz Score")
-
+        award_badge(student_id, "Perfect Quiz Score", new_badges)
+        db.session.commit()
+    
     # auto mark section complete 
     section = LessonSection.query.filter_by(quiz_id=quiz_id).first()
     if section and section.is_active:
@@ -405,6 +410,7 @@ def submit_quiz(quiz_id):
         if not existing_progress:
             db.session.add(SectionProgress(student_id=student_id, section_id=section.id))
             db.session.commit()
+            evaluate_section_badges(student_id, new_badges)
         
     return jsonify({
         "score": percentage_score,
@@ -413,7 +419,8 @@ def submit_quiz(quiz_id):
         "total_questions": total_questions,
         "attempts_used": attempt.attempts_used,
         "attempts_left": max(0, quiz.max_attempts - attempt.attempts_used),
-        "feedback": feedback
+        "feedback": feedback,
+        "new_badges": new_badges
     }), 200
 
 
@@ -665,7 +672,7 @@ def submit_assignment():
         if old_submission:
             db.session.delete(old_submission)
             db.session.commit()
-
+        new_badges = []
         submission = AssignmentSubmission(
             assignment_id=assignment.id,
             student_id=user_id,
@@ -674,15 +681,23 @@ def submit_assignment():
             
         db.session.add(submission)
         db.session.commit()
-        evaluate_assignment_badges(user_id)
-        evaluate_timeliness_badges(user_id)
+      
         
         # auto mark section complete 
         already_completed = SectionProgress.query.filter_by(student_id=user_id, section_id=lesson_section.id).first()
         if not already_completed and lesson_section.is_active:
             db.session.add(SectionProgress(student_id=user_id, section_id=lesson_section.id))
+            new_badges = []
+            evaluate_assignment_badges(user_id, new_badges)
+            evaluate_timeliness_badges(user_id, new_badges)
+            evaluate_section_badges(user_id, new_badges)
+
             db.session.commit()
-        return jsonify({"message": "Assignment submitted successfully!", "file_url": public_url}), 200
+        return jsonify({
+            "message": "Assignment submitted successfully!",
+            "file_url": public_url,
+            "new_badges": new_badges
+        }), 200
 
 
     except Exception as e:
@@ -821,7 +836,7 @@ def mark_section_complete(section_id):
 
     existing = SectionProgress.query.filter_by(student_id=user_id, section_id=section_id).first()
     if existing:
-        return jsonify({"message": "Already marked as completed."}), 200
+        return jsonify({"message": "Already marked as completed.", "new_badges": []}), 200
 
     progress = SectionProgress(
         student_id=user_id,
@@ -829,9 +844,17 @@ def mark_section_complete(section_id):
         completed_at=datetime.utcnow()
     )
     db.session.add(progress)
+
+    # Badge tracking
+    new_badges = []
+    evaluate_section_badges(user_id, new_badges)
+
     db.session.commit()
-    evaluate_section_badges(user_id)
-    return jsonify({"message": "Section marked as completed."}), 201
+
+    return jsonify({
+        "message": "Section marked as completed.",
+        "new_badges": new_badges
+    }), 201
 
 #Fetch compleded sections
 @student_bp.route("/sections/completed", methods=["GET"])

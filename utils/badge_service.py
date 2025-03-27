@@ -9,15 +9,24 @@ from models.section_progress import SectionProgress
 
 
 
-def award_badge(student_id, badge_name):
+def award_badge(student_id, badge_name, awarded_list=None):
     badge = Badge.query.filter_by(name=badge_name).first()
     if not badge:
         return
 
     already_awarded = UserBadge.query.filter_by(student_id=student_id, badge_id=badge.id).first()
     if not already_awarded:
-        db.session.add(UserBadge(student_id=student_id, badge_id=badge.id))
+        new_award = UserBadge(student_id=student_id, badge_id=badge.id)
+        db.session.add(new_award)
         db.session.commit()
+
+        if awarded_list is not None:
+            awarded_list.append({
+                "name": badge.name,
+                "description": badge.description,
+                "icon_url": badge.icon_url
+            })
+
 
 def evaluate_section_badges(student_id):
     completed_sections = SectionProgress.query.filter_by(student_id=student_id).count()
