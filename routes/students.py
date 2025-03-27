@@ -4,13 +4,13 @@ from utils.dropbox_service import get_temporary_download_link, delete_file_from_
 from werkzeug.utils import secure_filename, safe_join
 from flask import Blueprint, jsonify, g, request, current_app, send_from_directory, abort, send_file, redirect
 from sqlalchemy.orm import aliased, joinedload
-
+from utils.badge_service import award_badge, evaluate_course_completion_badges, evaluate_section_badges, evaluate_assignment_badges, evaluate_timeliness_badges,  evaluate_quiz_badges, award_badge
 from urllib.parse import unquote
 from utils.tokens import get_jwt_token, decode_jwt
 from utils.utils import login_required
 from models.users import User, db
 from models.section_progress import SectionProgress
-from models.badges import Badge
+from models.badges import Badge, UserBadge
 from models.degrees import Degree
 from models.courses import Course
 from models.course_lecturers import CourseLecturer
@@ -391,7 +391,10 @@ def submit_quiz(quiz_id):
     attempt.answers_temp = feedback
 
     db.session.commit()
-    
+    evaluate_quiz_badges(student_id)
+    if percentage_score == 100:
+       award_badge(student_id, "Perfect Quiz Score")
+
     # auto mark section complete 
     section = LessonSection.query.filter_by(quiz_id=quiz_id).first()
     if section and section.is_active:
@@ -402,7 +405,7 @@ def submit_quiz(quiz_id):
         if not existing_progress:
             db.session.add(SectionProgress(student_id=student_id, section_id=section.id))
             db.session.commit()
-
+        
     return jsonify({
         "score": percentage_score,
         "passed": passed,
@@ -671,13 +674,14 @@ def submit_assignment():
             
         db.session.add(submission)
         db.session.commit()
+        evaluate_assignment_badges(user_id)
+        evaluate_timeliness_badges(user_id)
         
         # auto mark section complete 
         already_completed = SectionProgress.query.filter_by(student_id=user_id, section_id=lesson_section.id).first()
         if not already_completed and lesson_section.is_active:
             db.session.add(SectionProgress(student_id=user_id, section_id=lesson_section.id))
             db.session.commit()
-
         return jsonify({"message": "Assignment submitted successfully!", "file_url": public_url}), 200
 
 
@@ -826,6 +830,7 @@ def mark_section_complete(section_id):
     )
     db.session.add(progress)
     db.session.commit()
+    evaluate_section_badges(user_id)
     return jsonify({"message": "Section marked as completed."}), 201
 
 #Fetch compleded sections
@@ -914,3 +919,28 @@ def get_student_dashboard():
         "total_assignments_submitted": total_assignments_submitted,
         "course_stats": course_stats
     }), 200
+
+#Fetch user badges
+@student_bp.route("/badges", methods=["GET"])
+@login_required
+def get_user_badges():
+    student_id = g.user.get("user_id")
+    
+    user_badges = (
+        UserBadge.query
+        .filter_by(student_id=student_id)
+        .join(Badge)
+        .all()
+    )
+
+    badge_data = [
+        {
+            "name": ub.badge.name,
+            "description": ub.badge.description,
+            "icon_url": ub.badge.icon_url,
+            "awarded_at": ub.awarded_at.isoformat()
+        }
+        for ub in user_badges
+    ]
+
+    return jsonify(badge_data), 200
