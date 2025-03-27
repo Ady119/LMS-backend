@@ -639,17 +639,16 @@ def submit_assignment():
 
     dropbox_folder = f"assignments/course_{course_id}/lesson_{lesson_id}/assignment_{assignment.id}/student_{user_id}"
 
-    # Check if an old submission exists
+    # Check if an old submission
     old_submission = AssignmentSubmission.query.filter_by(assignment_id=assignment.id, student_id=user_id).first()
     
     if old_submission and old_submission.file_url:
         try:
-            # Delete previous submission from Dropbox
             delete_file_from_dropbox(old_submission.file_url)
-            print(f" Old file deleted from Dropbox: {old_submission.file_url}")
+            print(f"Old file deleted from Dropbox: {old_submission.file_url}")
 
         except Exception as e:
-            print(f" Error deleting old file from Dropbox: {e}")
+            print(f"Error deleting old file from Dropbox: {e}")
 
     try:
         # Upload new file to Dropbox
@@ -658,11 +657,11 @@ def submit_assignment():
         if not public_url:
             return jsonify({"error": "File upload to Dropbox failed"}), 500
 
-
         if old_submission:
             db.session.delete(old_submission)
             db.session.commit()
-        new_badges = []
+
+        # Add the new submission
         submission = AssignmentSubmission(
             assignment_id=assignment.id,
             student_id=user_id,
@@ -672,25 +671,27 @@ def submit_assignment():
         db.session.add(submission)
         db.session.commit()
       
-        
-        # auto mark section complete 
+        # Auto mark section complete 
         already_completed = SectionProgress.query.filter_by(student_id=user_id, section_id=lesson_section.id).first()
         if not already_completed and lesson_section.is_active:
             db.session.add(SectionProgress(student_id=user_id, section_id=lesson_section.id))
             db.session.commit()
-            new_badges = evaluate_all_badges(user_id)
+        
+        # Evaluate badges based on the submission
+        new_badges = evaluate_all_badges(user_id)
+        
         return jsonify({
             "message": "Assignment submitted successfully!",
             "file_url": public_url,
             "new_badges": new_badges
         }), 200
 
-
     except Exception as e:
-        print(f" Error uploading to Dropbox: {e}")
+        print(f"Error uploading to Dropbox: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({"error": f"File upload failed: {str(e)}"}), 500
+
 
 
 
