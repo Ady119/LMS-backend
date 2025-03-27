@@ -916,15 +916,15 @@ def get_student_dashboard():
             "course_title": course.title,
             "degree_name": course.degree.name if course.degree else "N/A",
             "lecturer_name": lecturer_name,
-            "progress": round(progress, 2),
-             "total_badges_earned": total_badges_earned
+            "progress": round(progress, 2)
         })
 
     return jsonify({
         "total_courses": total_courses,
         "total_quizzes_attempted": total_quizzes_attempted,
         "total_assignments_submitted": total_assignments_submitted,
-        "course_stats": course_stats
+        "course_stats": course_stats,
+        "total_badges_earned": total_badges_earned
     }), 200
 
 #Fetch user badges
