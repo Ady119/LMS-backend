@@ -666,7 +666,6 @@ def submit_assignment():
             assignment_id=assignment.id,
             student_id=user_id,
             file_url=public_url,
-            submitted_at= datetime.utcnow(),
         )
             
         db.session.add(submission)

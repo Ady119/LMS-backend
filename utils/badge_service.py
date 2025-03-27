@@ -97,10 +97,10 @@ def evaluate_timeliness_badges(student_id):
 
     for s in submissions:
         assignment = Assignment.query.get(s.assignment_id)
-        if assignment and assignment.due_date and s.created_at:
-            if s.created_at <= assignment.due_date:
+        if assignment and assignment.due_date and s.submitted_at:
+            if s.submitted_at <= assignment.due_date:
                 on_time_submissions += 1
-                if (assignment.due_date - s.created_at).total_seconds() >= 3600 * 24:
+                if (assignment.due_date - s.submitted_at).total_seconds() >= 3600 * 24:
                     early_submissions += 1
 
     if early_submissions >= 1:
