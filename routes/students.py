@@ -877,7 +877,7 @@ def get_student_dashboard():
         .distinct()
         .all()
     )
-
+    total_badges_earned = UserBadge.query.filter_by(student_id=student_id).count()
     total_courses = len(enrolled_courses)
     total_quizzes_attempted = db.session.query(QuizAttempt).filter_by(student_id=student_id).count()
     total_assignments_submitted = db.session.query(AssignmentSubmission).filter_by(student_id=student_id).count()
@@ -916,7 +916,8 @@ def get_student_dashboard():
             "course_title": course.title,
             "degree_name": course.degree.name if course.degree else "N/A",
             "lecturer_name": lecturer_name,
-            "progress": round(progress, 2)
+            "progress": round(progress, 2),
+             "total_badges_earned": total_badges_earned
         })
 
     return jsonify({
