@@ -235,4 +235,7 @@ def evaluate_all_badges(student_id, course_id=None, perfect_quiz_score=False):
     if course_id:
         new_badges += evaluate_course_completion_badges(student_id, course_id)
 
+    if new_badges:
+        db.session.commit()  # ✅ This is what actually saves them
+
     return new_badges
