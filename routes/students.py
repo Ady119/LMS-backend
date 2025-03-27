@@ -400,7 +400,7 @@ def submit_quiz(quiz_id):
         if not existing_progress:
             db.session.add(SectionProgress(student_id=student_id, section_id=section.id))
             db.session.commit()
-            new_badges = evaluate_all_badges(student_id, course_id=optional, perfect_quiz_score=optional)
+            new_badges = evaluate_all_badges(student_id, perfect_quiz_score=(percentage_score == 100))
         
     return jsonify({
         "score": percentage_score,
@@ -678,7 +678,7 @@ def submit_assignment():
         if not already_completed and lesson_section.is_active:
             db.session.add(SectionProgress(student_id=user_id, section_id=lesson_section.id))
             db.session.commit()
-            new_badges = evaluate_all_badges(student_id, course_id=optional, perfect_quiz_score=optional)
+            new_badges = evaluate_all_badges(user_id)
         return jsonify({
             "message": "Assignment submitted successfully!",
             "file_url": public_url,
@@ -831,7 +831,7 @@ def mark_section_complete(section_id):
     )
     db.session.add(progress)
     db.session.commit()
-    new_badges = evaluate_all_badges(student_id, course_id=optional, perfect_quiz_score=optional)
+    new_badges = evaluate_all_badges(user_id)
 
     return jsonify({
         "message": "Section marked as completed.",
