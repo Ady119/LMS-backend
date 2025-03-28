@@ -427,25 +427,30 @@ def download_file(course_id, lesson_id, filename):
 @lecturer_bp.route("/quizzes", methods=["GET"])
 @login_required
 def get_all_quizzes():
-    quizzes = Quiz.query.all()
+    user_id = g.user.get("user_id")
+    quizzes = Quiz.query.filter_by(lecturer_id=user_id).all()
     return jsonify([quiz.to_dict() for quiz in quizzes]), 200
 
 #Fetch one single quiz
 @lecturer_bp.route("/quizzes/<int:quiz_id>", methods=["GET"])
 @login_required
 def get_quiz(quiz_id):
-    quiz = Quiz.query.get(quiz_id)
-    if not quiz:
-        return jsonify({"error": "Quiz not found"}), 404
-    
+    user_id = g.user.get("user_id")
+    quiz = Quiz.query.get_or_404(quiz_id)
+
+    if quiz.lecturer_id != user_id:
+        return jsonify({"error": "Unauthorized"}), 403
+
     return jsonify(quiz.to_dict()), 200
 
 @lecturer_bp.route("/quizzes/<int:quiz_id>/view", methods=["GET"], endpoint="view_quiz_details")
 @login_required
 def get_quiz(quiz_id):
-    quiz = Quiz.query.get(quiz_id)
-    if not quiz:
-        return jsonify({"error": "Quiz not found"}), 404
+    user_id = g.user.get("user_id")
+    quiz = Quiz.query.get_or_404(quiz_id)
+    
+    if quiz.lecturer_id != user_id:
+        return jsonify({"error": "Unauthorized"}), 403
 
     short_answer_questions = ShortAnswerQuestion.query.filter_by(quiz_id=quiz_id).all()
     multiple_choice_questions = MultipleChoiceQuestion.query.filter_by(quiz_id=quiz_id).all()
@@ -464,12 +469,14 @@ def get_quiz(quiz_id):
         "multiple_choice_questions": [q.to_dict() for q in multiple_choice_questions],
     }), 200
 
+    user_id = g.user.get("user_id")
 
 #CREATE a New Quiz
-# --------------------------------------------------------------------------------
 @lecturer_bp.route("/quizzes/new", methods=["POST"])
 @login_required
 def create_quiz():
+    user_id = g.user.get("user_id")
+
     data = request.json
 
     title = data.get("title")
@@ -492,24 +499,32 @@ def create_quiz():
         randomize_questions=randomize_questions,
         immediate_feedback=immediate_feedback,
         passing_score=passing_score,
-        deadline=deadline
+        deadline=deadline,
+        lecturer_id=user_id
     )
 
     db.session.add(new_quiz)
     db.session.commit()
 
-    return jsonify({"message": "Quiz created successfully", "quiz": new_quiz.to_dict()}), 201
+    return jsonify({
+        "message": "Quiz created successfully",
+        "quiz": new_quiz.to_dict()
+    }), 201
 
 
-# EDIT a Quiz (Only Title & Description)
-# --------------------------------------------------------------------------------
+
+# EDIT a Quiz info
 @lecturer_bp.route("/quizzes/<int:quiz_id>/edit", methods=["PUT"])
 @login_required
 def edit_quiz(quiz_id):
+    user_id = g.user.get("user_id")
+
     quiz = Quiz.query.get(quiz_id)
     if not quiz:
         return jsonify({"error": "Quiz not found"}), 404
-
+    if quiz.lecturer_id != user_id:
+        return jsonify({"error": "Unauthorized"}), 403
+    
     data = request.json
 
     # Update only the provided fields
@@ -528,18 +543,23 @@ def edit_quiz(quiz_id):
 
 
 # DELETE a Quiz
-# --------------------------------------------------------------------------------
 @lecturer_bp.route("/quizzes/<int:quiz_id>/delete", methods=["DELETE"])
 @login_required
 def delete_quiz(quiz_id):
+    user_id = g.user.get("user_id")
+
     quiz = Quiz.query.get(quiz_id)
     if not quiz:
         return jsonify({"error": "Quiz not found"}), 404
+
+    if quiz.lecturer_id != user_id:
+        return jsonify({"error": "Unauthorized"}), 403
 
     db.session.delete(quiz)
     db.session.commit()
 
     return jsonify({"message": "Quiz deleted successfully"}), 200
+
 
 
 # GET Questions for a Quiz (Both Types)
