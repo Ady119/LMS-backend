@@ -738,8 +738,8 @@ def delete_multiple_choice_question(question_id):
 @lecturer_bp.route("/assignments", methods=["GET"], endpoint="get_assignments")
 @login_required
 def get_available_assignments():
-    """Fetch all assignments that are available for selection."""
-    assignments = Assignment.query.all()
+    user_id = g.user.get("user_id")
+    assignments = Assignment.query.filter_by(lecturer_id=user_id).all()
     return jsonify([assignment.to_dict() for assignment in assignments]), 200
 
 
@@ -747,13 +747,19 @@ def get_available_assignments():
 @lecturer_bp.route("/lessons/<int:lesson_id>/assignments", methods=["GET"], endpoint="get_lesson_assignments")
 @login_required
 def get_assignments(lesson_id):
-    assignments = Assignment.query.filter_by(lesson_id=lesson_id).all()
+    user_id = g.user.get("user_id")
+    assignments = Assignment.query.filter_by(
+        lesson_id=lesson_id,
+        lecturer_id=user_id
+    ).all()
     return jsonify([assignment.to_dict() for assignment in assignments]), 200
 
 # Create a New Assignment
 @lecturer_bp.route("/assignments/new", methods=["POST"], endpoint="add_assignment")
 @login_required
 def create_assignment():
+    user_id = g.user.get("user_id")
+
     title = request.form.get("title")
     description = request.form.get("description")
     due_date = request.form.get("due_date")
@@ -778,10 +784,10 @@ def create_assignment():
             if not file_url or not dropbox_path:
                 return jsonify({"error": "File upload failed"}), 500
 
-            print(f" File uploaded successfully: {file_url}")
+            print(f"File uploaded successfully: {file_url}")
 
         except Exception as e:
-            print(f" Error uploading file to Dropbox: {e}")
+            print(f"Error uploading file to Dropbox: {e}")
             return jsonify({"error": "File upload failed"}), 500
 
     new_assignment = Assignment(
@@ -789,7 +795,8 @@ def create_assignment():
         description=description,
         due_date=due_date,
         file_url=file_url,
-        dropbox_path=dropbox_path
+        dropbox_path=dropbox_path,
+        lecturer_id=user_id
     )
 
     db.session.add(new_assignment)
@@ -801,14 +808,19 @@ def create_assignment():
     }), 201
 
 
+    user_id = g.user.get("user_id")
 
 #Edit assignment
 @lecturer_bp.route("/assignments/<int:assignment_id>", methods=["PUT"])
 @login_required
 def edit_assignment(assignment_id):
+    user_id = g.user.get("user_id")
     assignment = Assignment.query.get(assignment_id)
     if not assignment:
         return jsonify({"error": "Assignment not found"}), 404
+
+    if assignment.lecturer_id != user_id:
+        return jsonify({"error": "Unauthorized"}), 403
 
     data = request.form if request.form else request.get_json()
     file = request.files.get("file")
@@ -835,7 +847,6 @@ def edit_assignment(assignment_id):
     if file:
         filename = secure_filename(file.filename)
 
-        # Delete old file from Dropbox
         if assignment.dropbox_path:
             try:
                 delete_file_from_dropbox(assignment.dropbox_path)
@@ -872,11 +883,14 @@ def edit_assignment(assignment_id):
 @lecturer_bp.route("/assignments/<int:assignment_id>", methods=["DELETE"], endpoint="delete_assignment")
 @login_required
 def delete_assignment(assignment_id):
+    user_id = g.user.get("user_id")
     assignment = Assignment.query.get(assignment_id)
     if not assignment:
         return jsonify({"error": "Assignment not found"}), 404
 
-    # Remove assignment from lesson_section
+    if assignment.lecturer_id != user_id:
+        return jsonify({"error": "Unauthorized"}), 403
+
     linked_sections = LessonSection.query.filter_by(assignment_id=assignment.id).all()
     for section in linked_sections:
         section.assignment_id = None
@@ -885,16 +899,16 @@ def delete_assignment(assignment_id):
     if assignment.dropbox_path:
         try:
             delete_file_from_dropbox(assignment.dropbox_path)
-            print(f" File deleted from Dropbox: {assignment.dropbox_path}")
-
+            print(f"File deleted from Dropbox: {assignment.dropbox_path}")
         except dropbox.exceptions.ApiError as e:
-            print(f" Error deleting file from Dropbox: {e}")
+            print(f"Error deleting file from Dropbox: {e}")
             return jsonify({"error": "Failed to delete file from Dropbox"}), 500
 
     db.session.delete(assignment)
     db.session.commit()
 
-    return jsonify({"message": " Assignment deleted successfully"}), 200
+    return jsonify({"message": "Assignment deleted successfully"}), 200
+
 
 
 #Download unassigned assignment route
