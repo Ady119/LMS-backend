@@ -17,6 +17,8 @@ class User(db.Model):
     date_created = db.Column(db.DateTime, default=db.func.now(), nullable=False)
     
     quizzes = db.relationship("Quiz", back_populates="lecturer", cascade="all, delete")
+    assignments = db.relationship("Assignment", back_populates="lecturer", cascade="all, delete")
+
 
     def set_password(self, password):
         """Hashes the password before storing."""

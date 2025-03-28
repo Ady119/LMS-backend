@@ -11,6 +11,9 @@ class Assignment(db.Model):
     dropbox_path = db.Column(db.String(255), nullable=True)
 
     sections = relationship("LessonSection", back_populates="assignment", overlaps="assignment")
+    lecturer_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    lecturer = relationship("User", back_populates="assignments")
+
 
     def to_dict(self):
         return {
@@ -20,4 +23,5 @@ class Assignment(db.Model):
             "due_date": self.due_date.isoformat() if self.due_date else None,
             "file_url": self.file_url,
             "dropbox_path": self.dropbox_path,
+            "lecturer_id": self.lecturer_id,
         }
