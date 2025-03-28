@@ -13,6 +13,9 @@ class Quiz(db.Model):
     immediate_feedback = db.Column(db.Boolean, nullable=False, default=False)
     passing_score = db.Column(db.Float, nullable=True, default=50.0)
     deadline = db.Column(db.DateTime, nullable=True)
+    
+    lecturer_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    lecturer = db.relationship("User", back_populates="quizzes")
 
     @property
     def total_questions(self):
@@ -37,6 +40,7 @@ class Quiz(db.Model):
                 if isinstance(self.deadline, str) and self.deadline.strip()
                 else (self.deadline.isoformat() if isinstance(self.deadline, datetime) else None)
             ),
+            "lecturer_id": self.lecturer_id,
             "short_answer_questions": [q.to_dict() for q in self.short_answer_questions],
             "multiple_choice_questions": [q.to_dict() for q in self.multiple_choice_questions],
         }

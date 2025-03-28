@@ -15,6 +15,8 @@ class User(db.Model):
     role = db.Column(db.String(20), nullable=False)  # 'student', 'lecturer', 'admin'
     institution_id = db.Column(db.Integer, db.ForeignKey('institutions.id'), nullable=True)
     date_created = db.Column(db.DateTime, default=db.func.now(), nullable=False)
+    
+    quizzes = db.relationship("Quiz", back_populates="lecturer", cascade="all, delete")
 
     def set_password(self, password):
         """Hashes the password before storing."""
