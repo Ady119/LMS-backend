@@ -20,6 +20,8 @@ from models.short_quiz import ShortAnswerQuestion
 from models.assignment import Assignment
 from models.academic_calendar import AcademicCalendar
 from models.calendar_week import CalendarWeek
+from models.enrolments import Enrolment
+from models.assignment_submission import AssignmentSubmission
 
 # Lecturers' blueprint
 lecturer_bp = Blueprint("lecturer", __name__)
@@ -917,3 +919,39 @@ def get_calendar_weeks_for_course(course_id):
         }
         for w in weeks
     ])
+
+@lecturer_bp.route("/dashboard", methods=["GET"])
+@login_required
+def get_lecturer_dashboard():
+    lecturer_id = g.user.get("user_id")
+
+    courses = Course.query.join(Lesson).filter(Lesson.created_by == lecturer_id).distinct().all()
+    course_ids = [course.id for course in courses]
+
+    total_courses = len(courses)
+
+    total_students = db.session.query(Enrolment.student_id).join(Course).filter(
+        Course.id.in_(course_ids)
+    ).distinct().count()
+
+    total_quizzes = Quiz.query.join(LessonSection).join(Lesson).filter(
+        Lesson.created_by == lecturer_id
+    ).count()
+
+    total_assignments = Assignment.query.join(LessonSection).join(Lesson).filter(
+        Lesson.created_by == lecturer_id
+    ).count()
+
+    total_submissions = AssignmentSubmission.query.join(Assignment).join(LessonSection).join(Lesson).filter(
+        Lesson.created_by == lecturer_id
+    ).count()
+
+
+    return jsonify({
+        "total_courses": total_courses,
+        "total_students": total_students,
+        "total_quizzes": total_quizzes,
+        "total_assignments": total_assignments,
+        "total_submissions": total_submissions,
+
+    }), 200
