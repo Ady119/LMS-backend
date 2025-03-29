@@ -962,7 +962,6 @@ def get_calendar_weeks_for_course(course_id):
 def get_lecturer_dashboard():
     lecturer_id = g.user.get("user_id")
 
-    # Get all course IDs assigned to this lecturer
     course_ids = db.session.query(CourseLecturer.course_id).filter_by(lecturer_id=lecturer_id).subquery()
 
     # Get lessons only from these courses
@@ -1017,3 +1016,46 @@ def get_lecturer_dashboard():
         "total_quiz_attempts": total_quiz_attempts,
         "avg_score": avg_score
     }), 200
+
+@lecturer_bp.route("/calendar", methods=["GET"])
+@login_required
+def get_lecturer_calendar_data():
+    lecturer_id = g.user["user_id"]
+
+    course_ids = db.session.query(CourseLecturer.course_id).filter_by(lecturer_id=lecturer_id).subquery()
+    lessons = Lesson.query.filter(Lesson.course_id.in_(course_ids)).all()
+    lesson_ids = [lesson.id for lesson in lessons]
+
+    sections = LessonSection.query.filter(LessonSection.lesson_id.in_(lesson_ids)).all()
+
+    events = []
+    for section in sections:
+        week = section.calendar_week
+        if not week:
+            continue
+
+        events.append({
+            "id": section.id,
+            "title": f"{section.title} ({section.content_type})",
+            "start": week.start_date.isoformat(),
+            "end": week.end_date.isoformat(),
+            "type": section.content_type,
+            "is_break": week.is_break,
+            "week_label": week.label,
+        })
+
+    # Include break-only weeks too
+    break_weeks = CalendarWeek.query.filter_by(is_break=True, calendar_id=lessons[0].course.degree.calendar_id).all() if lessons else []
+    for week in break_weeks:
+        events.append({
+            "id": f"break-{week.id}",
+            "title": f"{week.label} (Break)",
+            "start": week.start_date.isoformat(),
+            "end": week.end_date.isoformat(),
+            "type": "break",
+            "is_break": True,
+            "week_label": week.label,
+        })
+
+    return jsonify(events), 200
+
