@@ -23,6 +23,7 @@ from models.calendar_week import CalendarWeek
 from models.enrolments import Enrolment
 from models.assignment_submission import AssignmentSubmission
 from models.quiz_attempts import QuizAttempt
+from models.degrees import Degree
 
 # Lecturers' blueprint
 lecturer_bp = Blueprint("lecturer", __name__)
@@ -961,27 +962,31 @@ def get_calendar_weeks_for_course(course_id):
 def get_lecturer_dashboard():
     lecturer_id = g.user.get("user_id")
 
-    lessons = Lesson.query.filter_by(created_by=lecturer_id).all()
+    # Get all course IDs assigned to this lecturer
+    course_ids = db.session.query(CourseLecturer.course_id).filter_by(lecturer_id=lecturer_id).subquery()
+
+    # Get lessons only from these courses
+    lessons = Lesson.query.filter(Lesson.course_id.in_(course_ids)).all()
     lesson_ids = [lesson.id for lesson in lessons]
 
-    courses = Course.query.join(Lesson).filter(Lesson.created_by == lecturer_id).distinct().all()
-    course_ids = [course.id for course in courses]
-
-    total_courses = len(courses)
+    total_courses = db.session.query(CourseLecturer.course_id).filter_by(lecturer_id=lecturer_id).distinct().count()
     total_lessons = len(lessons)
 
-    total_sections = LessonSection.query.join(Lesson).filter(Lesson.id.in_(lesson_ids)).count()
+    total_sections = LessonSection.query.filter(LessonSection.lesson_id.in_([l.id for l in lessons])).count()
+    total_text_sections = LessonSection.query.filter(
+        LessonSection.lesson_id.in_(lesson_ids),
+        LessonSection.content_type == "text"
+    ).count()
+    total_quizzes = LessonSection.query.filter(
+        LessonSection.lesson_id.in_(lesson_ids),
+        LessonSection.quiz_id.isnot(None)
+    ).count()
+    total_assignments = LessonSection.query.filter(
+        LessonSection.lesson_id.in_(lesson_ids),
+        LessonSection.assignment_id.isnot(None)
+    ).count()
 
-    total_text_sections = LessonSection.query.join(Lesson).filter(
-        Lesson.id.in_(lesson_ids), LessonSection.content_type == "text"
-    ).count()
-    total_quizzes = LessonSection.query.join(Lesson).filter(
-        Lesson.id.in_(lesson_ids), LessonSection.quiz_id.isnot(None)
-    ).count()
-    total_assignments = LessonSection.query.join(Lesson).filter(
-        Lesson.id.in_(lesson_ids), LessonSection.assignment_id.isnot(None)
-    ).count()
-
+    #  Get students via enrolments in degrees related to lecturer’s courses
     total_students = db.session.query(Enrolment.student_id).join(Degree).join(Course).filter(
         Course.id.in_(course_ids)
     ).distinct().count()
