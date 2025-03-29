@@ -22,6 +22,7 @@ from models.academic_calendar import AcademicCalendar
 from models.calendar_week import CalendarWeek
 from models.enrolments import Enrolment
 from models.assignment_submission import AssignmentSubmission
+from models.quiz_attempts import QuizAttempt
 
 # Lecturers' blueprint
 lecturer_bp = Blueprint("lecturer", __name__)
@@ -954,38 +955,60 @@ def get_calendar_weeks_for_course(course_id):
         for w in weeks
     ])
 
+#lecturer dashboard stats
 @lecturer_bp.route("/dashboard", methods=["GET"])
 @login_required
 def get_lecturer_dashboard():
     lecturer_id = g.user.get("user_id")
 
+    lessons = Lesson.query.filter_by(created_by=lecturer_id).all()
+    lesson_ids = [lesson.id for lesson in lessons]
+
     courses = Course.query.join(Lesson).filter(Lesson.created_by == lecturer_id).distinct().all()
     course_ids = [course.id for course in courses]
 
     total_courses = len(courses)
+    total_lessons = len(lessons)
 
-    total_students = db.session.query(Enrolment.student_id).join(Course).filter(
+    total_sections = LessonSection.query.join(Lesson).filter(Lesson.id.in_(lesson_ids)).count()
+
+    total_text_sections = LessonSection.query.join(Lesson).filter(
+        Lesson.id.in_(lesson_ids), LessonSection.content_type == "text"
+    ).count()
+    total_quizzes = LessonSection.query.join(Lesson).filter(
+        Lesson.id.in_(lesson_ids), LessonSection.quiz_id.isnot(None)
+    ).count()
+    total_assignments = LessonSection.query.join(Lesson).filter(
+        Lesson.id.in_(lesson_ids), LessonSection.assignment_id.isnot(None)
+    ).count()
+
+    total_students = db.session.query(Enrolment.student_id).join(Degree).join(Course).filter(
         Course.id.in_(course_ids)
     ).distinct().count()
 
-    total_quizzes = Quiz.query.join(LessonSection).join(Lesson).filter(
-        Lesson.created_by == lecturer_id
+    total_submissions = AssignmentSubmission.query.join(Assignment).filter(
+        Assignment.lecturer_id == lecturer_id
     ).count()
 
-    total_assignments = Assignment.query.join(LessonSection).join(Lesson).filter(
-        Lesson.created_by == lecturer_id
+    total_quiz_attempts = QuizAttempt.query.join(Quiz).filter(
+        Quiz.lecturer_id == lecturer_id
     ).count()
 
-    total_submissions = AssignmentSubmission.query.join(Assignment).join(LessonSection).join(Lesson).filter(
-        Lesson.created_by == lecturer_id
-    ).count()
-
+    avg_score_result = db.session.query(db.func.avg(QuizAttempt.score)).join(Quiz).filter(
+        Quiz.lecturer_id == lecturer_id,
+        QuizAttempt.score.isnot(None)
+    ).scalar()
+    avg_score = round(avg_score_result or 0, 2)
 
     return jsonify({
         "total_courses": total_courses,
-        "total_students": total_students,
+        "total_lessons": total_lessons,
+        "total_sections": total_sections,
+        "total_text_sections": total_text_sections,
         "total_quizzes": total_quizzes,
         "total_assignments": total_assignments,
+        "total_students": total_students,
         "total_submissions": total_submissions,
-
+        "total_quiz_attempts": total_quiz_attempts,
+        "avg_score": avg_score
     }), 200
