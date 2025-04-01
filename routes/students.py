@@ -15,6 +15,7 @@ from models.degrees import Degree
 from models.courses import Course
 from models.course_lecturers import CourseLecturer
 from models.calendar_week import CalendarWeek
+from models.academic_calendar import AcademicCalendar
 
 from models.course_lessons import Lesson
 from models.lesson_section import LessonSection
@@ -954,8 +955,6 @@ def get_user_badges():
     return jsonify(badge_data), 200
 
 #student calendar
-student_bp = Blueprint("student", __name__)
-
 @student_bp.route("/calendar", methods=["GET"])
 @login_required
 def get_student_calendar():
@@ -990,3 +989,77 @@ def get_student_calendar():
         })
 
     return jsonify(events), 200
+
+#student profile
+@student_bp.route("/profile", methods=["GET"])
+@login_required
+def get_student_profile():
+    student_id = g.user["user_id"]
+
+    user = User.query.get(student_id)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    enrolment = Enrolment.query.filter_by(student_id=student_id).first()
+    degree = Degree.query.get(enrolment.degree_id) if enrolment else None
+    calendar = AcademicCalendar.query.get(degree.calendar_id) if degree and degree.calendar_id else None
+
+    # Course progress summary
+    courses = Course.query.filter_by(degree_id=degree.id).all() if degree else []
+    course_stats = []
+    for course in courses:
+        section_ids = (
+            db.session.query(LessonSection.id)
+            .join(Lesson, Lesson.id == LessonSection.lesson_id)
+            .filter(Lesson.course_id == course.id)
+            .all()
+        )
+        section_ids = [s.id for s in section_ids]
+        total_sections = len(section_ids)
+        completed = db.session.query(SectionProgress).filter(
+            SectionProgress.student_id == student_id,
+            SectionProgress.section_id.in_(section_ids)
+        ).count()
+        progress = (completed / total_sections * 100) if total_sections else 0
+        course_stats.append({
+            "course_id": course.id,
+            "course_title": course.title,
+            "progress": round(progress, 2)
+        })
+
+    # Badges earned
+    badges = (
+        db.session.query(UserBadge, Badge)
+        .join(Badge, Badge.id == UserBadge.badge_id)
+        .filter(UserBadge.student_id == student_id)
+        .order_by(UserBadge.awarded_at.desc())
+        .all()
+    )
+
+    badge_list = [
+        {
+            "id": b.Badge.id,
+            "name": b.Badge.name,
+            "description": b.Badge.description,
+            "icon_url": b.Badge.icon_url,
+            "awarded_at": b.UserBadge.awarded_at.isoformat()
+        } for b in badges
+    ]
+
+    return jsonify({
+        "user": {
+            "full_name": user.full_name,
+            "email": user.email,
+            "role": user.role,
+            "institution": user.institution.name if user.institution else None,
+            "date_joined": user.date_created.isoformat(),
+        },
+        "degree": {
+            "name": degree.name if degree else None,
+            "calendar_year": calendar.name if calendar else None,
+            "start_date": calendar.start_date.isoformat() if calendar else None,
+            "end_date": calendar.end_date.isoformat() if calendar else None,
+        },
+        "badges": badge_list,
+        "courses": course_stats
+    }), 200
