@@ -14,6 +14,7 @@ from models.badges import Badge, UserBadge
 from models.degrees import Degree
 from models.courses import Course
 from models.course_lecturers import CourseLecturer
+from models.calendar_week import CalendarWeek
 
 from models.course_lessons import Lesson
 from models.lesson_section import LessonSection
@@ -951,3 +952,41 @@ def get_user_badges():
     ]
 
     return jsonify(badge_data), 200
+
+#student calendar
+student_bp = Blueprint("student", __name__)
+
+@student_bp.route("/calendar", methods=["GET"])
+@login_required
+def get_student_calendar():
+    student_id = g.user["user_id"]
+
+    # Get student's degree and courses
+    degree_ids = db.session.query(Enrolment.degree_id).filter_by(student_id=student_id).subquery()
+    course_ids = db.session.query(Course.id).filter(Course.degree_id.in_(degree_ids)).subquery()
+
+    # Get lessons and sections
+    lesson_ids = db.session.query(Lesson.id).filter(Lesson.course_id.in_(course_ids)).subquery()
+    sections = (
+        db.session.query(LessonSection)
+        .filter(LessonSection.lesson_id.in_(lesson_ids))
+        .filter(LessonSection.calendar_week_id.isnot(None))
+        .join(CalendarWeek)
+        .all()
+    )
+
+    events = []
+    for section in sections:
+        week = section.calendar_week
+        course_title = section.lesson.course.title if section.lesson and section.lesson.course else ""
+        events.append({
+            "id": section.id,
+            "title": f"{section.title} ({section.content_type})",
+            "start": week.start_date.isoformat(),
+            "end": week.end_date.isoformat(),
+            "type": section.content_type,
+            "course_title": course_title,
+            "section_id": section.id
+        })
+
+    return jsonify(events), 200
