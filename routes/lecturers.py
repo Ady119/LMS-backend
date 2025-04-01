@@ -10,6 +10,8 @@ from utils.dropbox_service import delete_file_from_dropbox, get_file_link, uploa
 
 import dropbox
 from models.users import User, db
+from models.announcements import Announcement
+
 from models.courses import Course
 from models.course_lecturers import CourseLecturer
 from models.course_lessons import Lesson
@@ -1094,4 +1096,95 @@ def get_lecturer_profile():
         "date_created": user.date_created.isoformat(),
         "assigned_courses": course_list
     }), 200
+    
+#create announcements
+@lecturer_bp.route("/courses/<int:course_id>/announcements", methods=["POST"])
+@login_required
+def create_announcement(course_id):
+    lecturer_id = g.user.get("user_id")
+    data = request.get_json()
+    title = data.get("title")
+    message = data.get("message")
 
+    is_assigned = db.session.query(CourseLecturer).filter_by(
+        course_id=course_id,
+        lecturer_id=lecturer_id
+    ).first()
+
+    if not is_assigned:
+        return jsonify({"error": "You are not assigned to this course"}), 403
+
+    # Create announcement
+    announcement = Announcement(
+        course_id=course_id,
+        lecturer_id=lecturer_id,
+        title=title,
+        message=message
+    )
+    db.session.add(announcement)
+    db.session.commit()
+
+    return jsonify({"message": "Announcement created"}), 201
+
+
+#fetch announ. for a course
+@lecturer_bp.route("/courses/<int:course_id>/announcements", methods=["GET"])
+@login_required
+def get_course_announcements(course_id):
+    announcements = (
+        Announcement.query
+        .filter_by(course_id=course_id)
+        .order_by(Announcement.created_at.desc())
+        .all()
+    )
+
+    return jsonify([
+        {
+            "id": a.id,
+            "title": a.title,
+            "message": a.message,
+            "created_at": a.created_at.isoformat()
+        } for a in announcements
+    ])
+#update announ.
+@lecturer_bp.route("/courses/<int:course_id>/announcements/<int:announcement_id>", methods=["PUT"])
+@login_required
+def update_announcement(course_id, announcement_id):
+    lecturer_id = g.user.get("user_id")
+    data = request.get_json()
+
+    announcement = Announcement.query.filter_by(
+        id=announcement_id,
+        course_id=course_id,
+        lecturer_id=lecturer_id
+    ).first()
+
+    if not announcement:
+        return jsonify({"error": "Not found or unauthorized"}), 404
+
+    announcement.title = data.get("title", announcement.title)
+    announcement.message = data.get("message", announcement.message)
+
+    db.session.commit()
+
+    return jsonify({"message": "Announcement updated successfully"}), 200
+
+#delete announ.
+@lecturer_bp.route("/courses/<int:course_id>/announcements/<int:announcement_id>", methods=["DELETE"])
+@login_required
+def delete_announcement(course_id, announcement_id):
+    lecturer_id = g.user.get("user_id")
+
+    announcement = Announcement.query.filter_by(
+        id=announcement_id,
+        course_id=course_id,
+        lecturer_id=lecturer_id
+    ).first()
+
+    if not announcement:
+        return jsonify({"error": "Not found or unauthorized"}), 404
+
+    db.session.delete(announcement)
+    db.session.commit()
+
+    return jsonify({"message": "Announcement deleted"}), 200
