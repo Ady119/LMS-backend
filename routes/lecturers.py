@@ -1059,3 +1059,20 @@ def get_lecturer_calendar_data():
 
     return jsonify(events), 200
 
+#lecturer profile
+@lecturer_bp.route("/profile", methods=["GET"])
+@login_required
+def get_lecturer_profile():
+    user_id = g.user["user_id"]
+
+    user = User.query.get(user_id)
+    if not user or user.role != "lecturer":
+        return jsonify({"error": "Unauthorized"}), 403
+
+    return jsonify({
+        "id": user.id,
+        "full_name": user.full_name,
+        "email": user.email,
+        "institution_name": user.institution.name if user.institution else "N/A",
+        "date_created": user.date_created.isoformat()
+    }), 200

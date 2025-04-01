@@ -1166,6 +1166,6 @@ def get_student_recent_activity():
             "timestamp": p.completed_at.isoformat()
         })
 
-    # Sort all by time
     recent.sort(key=lambda x: x["timestamp"], reverse=True)
     return jsonify(recent[:6]), 200
+
