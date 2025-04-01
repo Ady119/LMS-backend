@@ -8,6 +8,8 @@ from utils.badge_service import evaluate_all_badges
 from urllib.parse import unquote
 from utils.tokens import get_jwt_token, decode_jwt
 from utils.utils import login_required
+from datetime import date
+
 from models.users import User, db
 from models.section_progress import SectionProgress
 from models.badges import Badge, UserBadge
@@ -1063,3 +1065,35 @@ def get_student_profile():
         "badges": badge_list,
         "courses": course_stats
     }), 200
+
+@student_bp.route("/activities-today", methods=["GET"])
+@login_required
+def get_student_activities_today():
+    student_id = g.user["user_id"]
+
+    # Get course IDs from enrolled degrees
+    degree_ids = db.session.query(Enrolment.degree_id).filter_by(student_id=student_id).subquery()
+    course_ids = db.session.query(Course.id).filter(Course.degree_id.in_(degree_ids)).subquery()
+
+    # Get sections scheduled present day
+    lesson_ids = db.session.query(Lesson.id).filter(Lesson.course_id.in_(course_ids)).subquery()
+
+    today = date.today()
+    sections = (
+        db.session.query(LessonSection)
+        .filter(LessonSection.lesson_id.in_(lesson_ids))
+        .join(CalendarWeek, LessonSection.calendar_week_id == CalendarWeek.id)
+        .filter(CalendarWeek.start_date <= today, CalendarWeek.end_date >= today)
+        .all()
+    )
+
+    events = [
+        {
+            "id": s.id,
+            "title": s.title,
+            "content_type": s.content_type,
+            "course_title": s.lesson.course.title if s.lesson and s.lesson.course else "",
+        } for s in sections
+    ]
+
+    return jsonify(events), 200
