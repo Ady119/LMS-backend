@@ -1188,3 +1188,34 @@ def delete_announcement(course_id, announcement_id):
     db.session.commit()
 
     return jsonify({"message": "Announcement deleted"}), 200
+
+#get all announ.
+@lecturer_bp.route("/announcements", methods=["GET"])
+@login_required
+def get_all_announcements():
+    lecturer_id = g.user["user_id"]
+    
+    assigned_course_ids = db.session.query(CourseLecturer.course_id).filter_by(
+        lecturer_id=lecturer_id
+    ).subquery()
+
+    announcements = (
+        db.session.query(Announcement, Course.title)
+        .join(Course, Course.id == Announcement.course_id)
+        .filter(Announcement.course_id.in_(assigned_course_ids))
+        .order_by(Announcement.created_at.desc())
+        .all()
+    )
+
+    result = [
+        {
+            "id": ann.Announcement.id,
+            "title": ann.Announcement.title,
+            "message": ann.Announcement.message,
+            "created_at": ann.Announcement.created_at.isoformat(),
+            "course_title": title,
+        }
+        for ann, title in announcements
+    ]
+
+    return jsonify(result), 200
