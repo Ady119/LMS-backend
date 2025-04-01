@@ -1208,14 +1208,15 @@ def get_all_announcements():
     )
 
     result = [
-        {
-            "id": ann.Announcement.id,
-            "title": ann.Announcement.title,
-            "message": ann.Announcement.message,
-            "created_at": ann.Announcement.created_at.isoformat(),
-            "course_title": title,
-        }
-        for ann, title in announcements
-    ]
+    {
+        "id": ann.id,
+        "title": ann.title,
+        "message": ann.message,
+        "created_at": ann.created_at.isoformat(),
+        "course_title": course_title,
+    }
+    for ann, course_title in announcements
+]
+
 
     return jsonify(result), 200
