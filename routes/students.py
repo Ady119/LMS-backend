@@ -1097,3 +1097,75 @@ def get_student_activities_today():
     ]
 
     return jsonify(events), 200
+#student recent activity
+@student_bp.route("/recent-activity", methods=["GET"])
+@login_required
+def get_student_recent_activity():
+    student_id = g.user["user_id"]
+    recent = []
+
+    # Badges earned
+    badge_entries = (
+        db.session.query(UserBadge, Badge)
+        .join(Badge, UserBadge.badge_id == Badge.id)
+        .filter(UserBadge.student_id == student_id)
+        .order_by(UserBadge.awarded_at.desc())
+        .limit(3)
+        .all()
+    )
+    for entry, badge in badge_entries:
+        recent.append({
+            "type": "badge",
+            "message": f"Earned badge: {badge.name}",
+            "timestamp": entry.awarded_at.isoformat()
+        })
+
+    # Quiz attempts
+    quiz_attempts = (
+        db.session.query(QuizAttempt)
+        .filter_by(student_id=student_id)
+        .order_by(QuizAttempt.completed_at.desc())
+        .limit(3)
+        .all()
+    )
+    for attempt in quiz_attempts:
+        recent.append({
+            "type": "quiz",
+            "message": f"Completed a quiz with score {attempt.score:.0f}%",
+            "timestamp": attempt.completed_at.isoformat() if attempt.completed_at else datetime.utcnow().isoformat()
+        })
+
+    # Assignment submissions
+    submissions = (
+        db.session.query(AssignmentSubmission)
+        .filter_by(student_id=student_id)
+        .order_by(AssignmentSubmission.submitted_at.desc())
+        .limit(3)
+        .all()
+    )
+    for sub in submissions:
+        recent.append({
+            "type": "assignment",
+            "message": "Submitted an assignment",
+            "timestamp": sub.submitted_at.isoformat()
+        })
+
+    # Section completions
+    progress = (
+        db.session.query(SectionProgress, LessonSection)
+        .join(LessonSection, SectionProgress.section_id == LessonSection.id)
+        .filter(SectionProgress.student_id == student_id)
+        .order_by(SectionProgress.completed_at.desc())
+        .limit(3)
+        .all()
+    )
+    for p, section in progress:
+        recent.append({
+            "type": "section",
+            "message": f"Completed: {section.title}",
+            "timestamp": p.completed_at.isoformat()
+        })
+
+    # Sort all by time
+    recent.sort(key=lambda x: x["timestamp"], reverse=True)
+    return jsonify(recent[:6]), 200
