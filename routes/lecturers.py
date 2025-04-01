@@ -1060,6 +1060,8 @@ def get_lecturer_calendar_data():
     return jsonify(events), 200
 
 #lecturer profile
+lecturer_bp = Blueprint("lecturer", __name__)
+
 @lecturer_bp.route("/profile", methods=["GET"])
 @login_required
 def get_lecturer_profile():
@@ -1069,10 +1071,29 @@ def get_lecturer_profile():
     if not user or user.role != "lecturer":
         return jsonify({"error": "Unauthorized"}), 403
 
+    # Assigned courses
+    assigned_courses = (
+        Course.query
+        .join(CourseLecturer, Course.id == CourseLecturer.course_id)
+        .filter(CourseLecturer.lecturer_id == user_id)
+        .all()
+    )
+
+    course_list = [
+        {
+            "id": course.id,
+            "title": course.title,
+            "description": course.description,
+            "created_at": course.created_at.isoformat()
+        } for course in assigned_courses
+    ]
+
     return jsonify({
         "id": user.id,
         "full_name": user.full_name,
         "email": user.email,
         "institution_name": user.institution.name if user.institution else "N/A",
-        "date_created": user.date_created.isoformat()
+        "date_created": user.date_created.isoformat(),
+        "assigned_courses": course_list
     }), 200
+
