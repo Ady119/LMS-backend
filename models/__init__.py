@@ -8,6 +8,7 @@ from models.users import User
 
 from models.section_progress import SectionProgress
 from models.badges import Badge, UserBadge
+from models.announcements import Announcement
 
 from models.institutions import Institution
 from models.degrees import Degree 
