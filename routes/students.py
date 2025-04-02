@@ -18,6 +18,7 @@ from models.courses import Course
 from models.course_lecturers import CourseLecturer
 from models.calendar_week import CalendarWeek
 from models.academic_calendar import AcademicCalendar
+from models.announcements import Announcement
 
 from models.course_lessons import Lesson
 from models.lesson_section import LessonSection
@@ -1192,9 +1193,6 @@ def get_student_recent_activity():
 def get_student_announcements():
     user_id = g.user["user_id"]
 
-    # Get courses the student is enrolled in
-    from models import Enrolment, Course, CourseAnnouncement
-
     enrolled_course_ids = (
         db.session.query(Enrolment.course_id)
         .filter_by(student_id=user_id)
@@ -1202,9 +1200,9 @@ def get_student_announcements():
     )
 
     announcements = (
-        db.session.query(CourseAnnouncement)
-        .filter(CourseAnnouncement.course_id.in_(enrolled_course_ids))
-        .order_by(CourseAnnouncement.created_at.desc())
+        db.session.query(Announcement)
+        .filter(Announcement.course_id.in_(enrolled_course_ids))
+        .order_by(Announcement.created_at.desc())
         .all()
     )
 
