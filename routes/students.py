@@ -1220,4 +1220,39 @@ def get_student_announcements():
         ]
     }), 200
 
+#student course announcements
+@student_bp.route("/courses/<int:course_id>/announcements", methods=["GET"])
+@login_required
+def get_course_announcements(course_id):
+    user_id = g.user.get("user_id")
+    course = Course.query.get(course_id)
+    if not course:
+        return jsonify({"error": "Course not found"}), 404
 
+    is_enrolled = (
+        db.session.query(Enrolment)
+        .filter_by(student_id=user_id, degree_id=course.degree_id)
+        .first()
+    )
+
+    if not is_enrolled:
+        return jsonify({"error": "You are not enrolled in this course"}), 403
+
+    # Fetch course announcements
+    announcements = (
+        db.session.query(Announcement)
+        .filter_by(course_id=course_id)
+        .order_by(Announcement.created_at.desc())
+        .all()
+    )
+
+    announcement_list = [
+        {
+            "id": a.id,
+            "title": a.title,
+            "message": a.message,
+            "created_at": a.created_at.isoformat()
+        } for a in announcements
+    ]
+
+    return jsonify({"announcements": announcement_list}), 200
