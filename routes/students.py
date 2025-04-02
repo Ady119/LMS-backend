@@ -1192,26 +1192,36 @@ def get_student_recent_activity():
 def get_student_announcements():
     user_id = g.user.get("user_id")
 
-    enrolled_course_ids = db.session.query(Enrolment.course_id).filter_by(student_id=user_id).subquery()
+    degree_ids = (
+        db.session.query(Enrolment.degree_id)
+        .filter(Enrolment.student_id == user_id)
+        .subquery()
+    )
+    course_ids = (
+        db.session.query(Course.id)
+        .filter(Course.degree_id.in_(degree_ids))
+        .subquery()
+    )
 
-    # announcements for those courses
+    #  all announcements for those courses
     announcements = (
         db.session.query(Announcement)
-        .filter(Announcement.course_id.in_(enrolled_course_ids))
+        .filter(Announcement.course_id.in_(course_ids))
         .order_by(Announcement.created_at.desc())
         .all()
     )
 
-    result = []
-    for a in announcements:
-        result.append({
+    result = [
+        {
             "id": a.id,
+            "course_id": a.course_id,
             "title": a.title,
-            "message": a.message[:150] + "..." if len(a.message) > 150 else a.message,
-            "course_id": a.course.id,
-            "course_title": a.course.title,
-            "created_at": a.created_at.isoformat()
-        })
+            "message": a.message,
+            "created_at": a.created_at.isoformat(),
+            "course_title": a.course.title if a.course else "Unknown Course"
+        }
+        for a in announcements
+    ]
 
     return jsonify(result), 200
 
