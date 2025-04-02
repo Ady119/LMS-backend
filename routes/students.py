@@ -590,8 +590,6 @@ def get_all_assignments():
         .distinct()
         .all()
     )
-
-
     assignment_list = []
     for assignment in assignments:
         section = assignment.sections[0] if assignment.sections else None

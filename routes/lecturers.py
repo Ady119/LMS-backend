@@ -189,8 +189,6 @@ def delete_lesson(course_id, lesson_id):
 @lecturer_bp.route('/courses/<int:course_id>/lessons/<int:lesson_id>/sections/<int:section_id>', methods=['DELETE'])
 @login_required
 def delete_section(course_id, lesson_id, section_id):
-    """Deletes a lesson section and removes any associated file from Dropbox."""
-    
     section = LessonSection.query.filter_by(id=section_id, lesson_id=lesson_id).first()
 
     if not section:
@@ -201,14 +199,23 @@ def delete_section(course_id, lesson_id, section_id):
         try:
             delete_file_from_dropbox(section.file_url)
             print(f" File deleted from Dropbox: {section.file_url}")
-
         except Exception as e:
             print(f" Error deleting file from Dropbox: {e}")
+
+    # Delete progress records
+    try:
+        from models import SectionProgress
+        SectionProgress.query.filter_by(section_id=section_id).delete()
+        db.session.commit()
+    except Exception as e:
+        print(f" Error deleting section progress: {e}")
+        return jsonify({"error": "Failed to delete related progress records"}), 500
 
     db.session.delete(section)
     db.session.commit()
 
-    return jsonify({"message": "Section and associated file deleted successfully"})
+    return jsonify({"message": "Section, file, and related progress deleted successfully"})
+
 
 
 # Fetch lesson details and its sectiosn
