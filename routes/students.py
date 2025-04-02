@@ -670,6 +670,7 @@ def submit_assignment():
             assignment_id=assignment.id,
             student_id=user_id,
             file_url=public_url,
+            original_file_name=file.filename,
         )
             
         db.session.add(submission)
