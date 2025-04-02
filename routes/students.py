@@ -586,7 +586,9 @@ def get_all_assignments():
         .join(LessonSection, LessonSection.assignment_id == Assignment.id)
         .filter(LessonSection.id.isnot(None))
         .options(
-            joinedload(Assignment.sections).joinedload(LessonSection.lesson).joinedload(lambda l: l.course)
+            joinedload(Assignment.sections)
+            .joinedload(LessonSection.lesson)
+            .joinedload(Lesson.course)
         )
         .distinct()
         .all()
