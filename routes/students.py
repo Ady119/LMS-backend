@@ -627,7 +627,6 @@ def get_all_assignments():
 
     return jsonify({"assignments": assignment_list}), 200
 
-
 #submit assignment
 @student_bp.route('/assignments/submit', methods=['POST'])
 @login_required
@@ -1186,3 +1185,39 @@ def get_student_recent_activity():
     recent.sort(key=lambda x: x["timestamp"], reverse=True)
     return jsonify(recent[:6]), 200
 
+#student all announcements
+# routes/students.py
+@student_bp.route("/announcements", methods=["GET"])
+@login_required
+def get_student_announcements():
+    user_id = g.user["user_id"]
+
+    # Get courses the student is enrolled in
+    from models import Enrolment, Course, CourseAnnouncement
+
+    enrolled_course_ids = (
+        db.session.query(Enrolment.course_id)
+        .filter_by(student_id=user_id)
+        .subquery()
+    )
+
+    announcements = (
+        db.session.query(CourseAnnouncement)
+        .filter(CourseAnnouncement.course_id.in_(enrolled_course_ids))
+        .order_by(CourseAnnouncement.created_at.desc())
+        .all()
+    )
+
+    announcement_list = [
+        {
+            "id": ann.id,
+            "title": ann.title,
+            "message": ann.message,
+            "course_id": ann.course_id,
+            "course_title": ann.course.title if ann.course else "Unknown Course",
+            "created_at": ann.created_at.isoformat()
+        }
+        for ann in announcements
+    ]
+
+    return jsonify({"announcements": announcement_list}), 200
