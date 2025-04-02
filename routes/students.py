@@ -1192,36 +1192,32 @@ def get_student_recent_activity():
 def get_student_announcements():
     user_id = g.user.get("user_id")
 
-    degree_ids = (
-        db.session.query(Enrolment.degree_id)
+    course_ids = (
+        db.session.query(Course.id)
+        .join(Enrolment, Enrolment.degree_id == Course.degree_id)
         .filter(Enrolment.student_id == user_id)
         .subquery()
     )
-    course_ids = (
-        db.session.query(Course.id)
-        .filter(Course.degree_id.in_(degree_ids))
-        .subquery()
-    )
 
-    #  all announcements for those courses
     announcements = (
-        db.session.query(Announcement)
+        Announcement.query
         .filter(Announcement.course_id.in_(course_ids))
         .order_by(Announcement.created_at.desc())
         .all()
     )
 
-    result = [
-        {
-            "id": a.id,
-            "course_id": a.course_id,
-            "title": a.title,
-            "message": a.message,
-            "created_at": a.created_at.isoformat(),
-            "course_title": a.course.title if a.course else "Unknown Course"
-        }
-        for a in announcements
-    ]
+    return jsonify({
+        "announcements": [
+            {
+                "id": a.id,
+                "title": a.title,
+                "message": a.message,
+                "course_id": a.course_id,
+                "course_title": a.course.title if a.course else "Unknown Course",
+                "created_at": a.created_at.isoformat()
+            }
+            for a in announcements
+        ]
+    }), 200
 
-    return jsonify(result), 200
 
