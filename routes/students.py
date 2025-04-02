@@ -581,40 +581,50 @@ def get_available_quizzes():
 def get_all_assignments():
     user_id = g.user.get("user_id")
 
-    # Fetch all assignments with related Course, Lesson, and Section
     assignments = (
         db.session.query(Assignment)
-        .outerjoin(LessonSection, LessonSection.assignment_id == Assignment.id)
-        .filter(LessonSection.id != None)
-        .options(joinedload(Assignment.sections))
+        .join(LessonSection, LessonSection.assignment_id == Assignment.id)
+        .filter(LessonSection.id.isnot(None))
+        .options(
+            joinedload(Assignment.sections).joinedload(LessonSection.lesson).joinedload(lambda l: l.course)
+        )
         .distinct()
         .all()
     )
+
     assignment_list = []
     for assignment in assignments:
-        section = assignment.sections[0] if assignment.sections else None
-        lesson = section.lesson if section else None
-        course = lesson.course if lesson else None
+        for section in assignment.sections:
+            if not section.lesson or not section.lesson.course:
+                continue
 
-        assignment_list.append({
-            "id": assignment.id,
-            "title": assignment.title,
-            "description": assignment.description,
-            "due_date": assignment.due_date.isoformat() if assignment.due_date else None,
-            "course_name": course.title if course else "Unknown Course",
-            "lesson_title": lesson.title if lesson else "Unknown Lesson",
-            "section_title": section.title if section else "Unknown Section",
-            "submissions": [
-                {
-                    "id": submission.id,
-                    "file_name": os.path.basename(submission.file_url),
-                    "submitted_at": submission.submitted_at.isoformat()
-                }
-                for submission in AssignmentSubmission.query.filter_by(assignment_id=assignment.id, student_id=user_id).all()
-            ],
-        })
+            course = section.lesson.course
+            lesson = section.lesson
+            submissions = AssignmentSubmission.query.filter_by(
+                assignment_id=assignment.id,
+                student_id=user_id
+            ).all()
+
+            assignment_list.append({
+                "id": assignment.id,
+                "title": assignment.title,
+                "description": assignment.description,
+                "due_date": assignment.due_date.isoformat() if assignment.due_date else None,
+                "course_name": course.title,
+                "lesson_title": lesson.title,
+                "section_title": section.title,
+                "submissions": [
+                    {
+                        "id": s.id,
+                        "file_name": s.original_file_name or os.path.basename(s.file_url),
+                        "file_url": s.file_url,
+                        "submitted_at": s.submitted_at.isoformat()
+                    } for s in submissions
+                ]
+            })
 
     return jsonify({"assignments": assignment_list}), 200
+
 
 #submit assignment
 @student_bp.route('/assignments/submit', methods=['POST'])
