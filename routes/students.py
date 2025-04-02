@@ -582,10 +582,13 @@ def get_all_assignments():
     user_id = g.user.get("user_id")
 
     # Fetch all assignments with related Course, Lesson, and Section
-    assignments = db.session.query(Assignment).options(
-        joinedload(Assignment.sections)
-    ).all()
-
+    assignments = (
+        db.session.query(Assignment)
+        .join(LessonSection, LessonSection.assignment_id == Assignment.id)
+        .options(joinedload(Assignment.sections))
+        .distinct()
+        .all()
+    )
     assignment_list = []
     for assignment in assignments:
         section = assignment.sections[0] if assignment.sections else None
