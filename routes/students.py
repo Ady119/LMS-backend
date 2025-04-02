@@ -1206,19 +1206,27 @@ def get_student_announcements():
         .all()
     )
 
-    return jsonify({
-        "announcements": [
-            {
-                "id": a.id,
-                "title": a.title,
-                "message": a.message,
-                "course_id": a.course_id,
-                "course_title": a.course.title if a.course else "Unknown Course",
-                "created_at": a.created_at.isoformat()
-            }
-            for a in announcements
-        ]
-    }), 200
+    data = []
+    for a in announcements:
+        first_lesson = (
+            db.session.query(Lesson)
+            .filter_by(course_id=a.course_id)
+            .order_by(Lesson.id.asc())
+            .first()
+        )
+
+        data.append({
+            "id": a.id,
+            "title": a.title,
+            "message": a.message,
+            "course_id": a.course_id,
+            "course_title": a.course.title if a.course else "Unknown Course",
+            "lesson_id": first_lesson.id if first_lesson else None,
+            "created_at": a.created_at.isoformat()
+        })
+
+    return jsonify({"announcements": data}), 200
+
 
 #student course announcements
 @student_bp.route("/courses/<int:course_id>/announcements", methods=["GET"])
