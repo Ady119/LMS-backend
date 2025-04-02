@@ -14,7 +14,8 @@ class AssignmentSubmission(db.Model):
     submitted_at = db.Column(db.DateTime, default=func.current_timestamp())
 
     # Relationships
-    assignment = relationship("Assignment", backref="submissions")
+    assignment = relationship("Assignment", backref=db.backref("submissions", cascade="all, delete-orphan"))
+
     student = relationship("User", backref="assignment_submissions")
 
     def to_dict(self):
