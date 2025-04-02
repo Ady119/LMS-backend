@@ -1187,18 +1187,14 @@ def get_student_recent_activity():
     return jsonify(recent[:6]), 200
 
 #student all announcements
-# routes/students.py
 @student_bp.route("/announcements", methods=["GET"])
 @login_required
 def get_student_announcements():
-    user_id = g.user["user_id"]
+    user_id = g.user.get("user_id")
 
-    enrolled_course_ids = (
-        db.session.query(Enrolment.course_id)
-        .filter_by(student_id=user_id)
-        .subquery()
-    )
+    enrolled_course_ids = db.session.query(Enrolment.course_id).filter_by(student_id=user_id).subquery()
 
+    # announcements for those courses
     announcements = (
         db.session.query(Announcement)
         .filter(Announcement.course_id.in_(enrolled_course_ids))
@@ -1206,16 +1202,16 @@ def get_student_announcements():
         .all()
     )
 
-    announcement_list = [
-        {
-            "id": ann.id,
-            "title": ann.title,
-            "message": ann.message,
-            "course_id": ann.course_id,
-            "course_title": ann.course.title if ann.course else "Unknown Course",
-            "created_at": ann.created_at.isoformat()
-        }
-        for ann in announcements
-    ]
+    result = []
+    for a in announcements:
+        result.append({
+            "id": a.id,
+            "title": a.title,
+            "message": a.message[:150] + "..." if len(a.message) > 150 else a.message,
+            "course_id": a.course.id,
+            "course_title": a.course.title,
+            "created_at": a.created_at.isoformat()
+        })
 
-    return jsonify({"announcements": announcement_list}), 200
+    return jsonify(result), 200
+
