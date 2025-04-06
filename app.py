@@ -24,7 +24,15 @@ def home():
 env = os.environ.get("FLASK_ENV", "production")
 app.config.from_object(config_dict[env])
 print("Loaded DB URI:", app.config.get("SQLALCHEMY_DATABASE_URI"))
-CORS(app, resources={r"/*": {"origins": "https://lms-frontend-henna-sigma.vercel.app", "supports_credentials": True}})
+CORS(app, resources={
+    r"/*": {
+        "origins": [
+            "https://lms-frontend-henna-sigma.vercel.app",                        # production
+            "https://lms-frontend-5v355z5s0-adrians-projects-6add6cfa.vercel.app" # preview
+        ],
+        "supports_credentials": True
+    }
+})
 Session(app)
 
 db.init_app(app)
