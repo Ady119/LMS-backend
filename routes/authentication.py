@@ -15,6 +15,7 @@ def after_request(response):
     allowed_origins = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "https://lms-frontend-5v355z5s0-adrians-projects-6add6cfa.vercel.app",
         "https://lms-frontend-henna-sigma.vercel.app"
     ]
 
@@ -28,7 +29,7 @@ def login():
     password = data.get("password")
     print(f"Received username: {username}, password: {password}")
     data = request.get_json()
-    print(f"Received Data: {data}")  # Add more logging to verify incoming data
+    print(f"Received Data: {data}")
 
     user = User.query.filter_by(username=username).first()
 
@@ -52,7 +53,6 @@ def login():
             "email": user.email
         }
     }))
-    print(f"Setting cookie: {token}")  # Add this line
     response.set_cookie(
         "access_token", token, 
         httponly=True, 
@@ -81,7 +81,6 @@ def logout():
     )
 
     return response
-
 
 #register Route
 @auth_bp.route('/register', methods=['POST'])
@@ -113,8 +112,6 @@ def register():
     db.session.commit()
 
     return jsonify({"message": "User registered successfully!"}), 201
-
-
 
 @auth_bp.route('/check-auth', methods=['GET'])
 def check_auth():

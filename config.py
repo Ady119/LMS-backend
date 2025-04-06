@@ -9,7 +9,6 @@ class Config:
     SECRET_KEY = os.getenv('SECRET_KEY', 'change_this_secret_key')      
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    # Pooling configuration for SQLAlchemy
     SQLALCHEMY_ENGINE_OPTIONS = {
         "poolclass": QueuePool,
         "pool_size": 5,
@@ -17,12 +16,8 @@ class Config:
         "pool_timeout": 10
     }
     
-    # Dropbox API Token
     DROPBOX_ACCESS_TOKEN = os.getenv("DROPBOX_ACCESS_TOKEN")
-
     ALLOWED_EXTENSIONS = {"pdf", "jpg", "png", "mp4", "zip", "txt", "docx"}  
-
-    # Session Configuration
     SESSION_TYPE = 'filesystem'  
     SESSION_PERMANENT = True
     SESSION_USE_SIGNER = True
@@ -36,16 +31,14 @@ class DevConfig(Config):
     """Development Configuration"""
     DEBUG = True
     TESTING = False
-    # Local database URI for MySQL
     SQLALCHEMY_DATABASE_URI = os.getenv('SQLALCHEMY_DATABASE_URI', 'mysql+pymysql://root:@localhost/lms_db2')
 
 class TestConfig(Config):
-    """Testing Configuration"""
     TESTING = True
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
 
 class ProdConfig(Config):
-    """Production Configuration (for Heroku deployment)"""
+    """Production Configuration (Heroku deployment)"""
     DEBUG = False
 
     raw_db_url = os.getenv('DATABASE_URL')

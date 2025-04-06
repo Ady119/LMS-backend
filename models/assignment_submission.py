@@ -13,7 +13,6 @@ class AssignmentSubmission(db.Model):
     original_file_name = db.Column(db.String(255), nullable=True)
     submitted_at = db.Column(db.DateTime, default=func.current_timestamp())
 
-    # Relationships
     assignment = relationship("Assignment", backref=db.backref("submissions", cascade="all, delete-orphan"))
 
     student = relationship("User", backref="assignment_submissions")

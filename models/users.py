@@ -12,7 +12,7 @@ class User(db.Model):
     email = db.Column(db.String(100), nullable=False, unique=True)
     password_hash = db.Column(db.String(255), nullable=False)
     full_name = db.Column(db.String(100), nullable=False)
-    role = db.Column(db.String(20), nullable=False)  # 'student', 'lecturer', 'admin'
+    role = db.Column(db.String(20), nullable=False)
     institution_id = db.Column(db.Integer, db.ForeignKey('institutions.id'), nullable=True)
     date_created = db.Column(db.DateTime, default=db.func.now(), nullable=False)
     

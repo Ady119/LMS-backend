@@ -19,7 +19,6 @@ from models.course_lecturers import CourseLecturer
 from models.calendar_week import CalendarWeek
 from models.academic_calendar import AcademicCalendar
 from models.announcements import Announcement
-
 from models.course_lessons import Lesson
 from models.lesson_section import LessonSection
 from models.assignment import Assignment
@@ -38,13 +37,13 @@ student_bp = Blueprint("student", __name__)
 def get_upload_folder():
     return current_app.config.get["AvhievED-LMS"]
 
-
 @student_bp.after_request
 def add_cors_headers(response):
     origin = request.headers.get('Origin')
     if origin in ["http://localhost:5173", 
                   "http://127.0.0.1:5173", 
                   "http://localhost:4173", 
+                  "https://lms-frontend-5v355z5s0-adrians-projects-6add6cfa.vercel.app",
                   "lms-frontend-henna-sigma.vercel.app"]:
         response.headers['Access-Control-Allow-Origin'] = origin
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
@@ -61,7 +60,6 @@ def get_enrolled_courses():
     if not student_id:
         return jsonify({"error": "Invalid token"}), 401
 
-    #Get degrees the student is enrolled in
     enrolled_degrees = db.session.query(Enrolment.degree_id).filter(
         Enrolment.student_id == student_id
     ).subquery()
@@ -84,7 +82,6 @@ def get_course_details(course_id):
     if not student_id:
         return jsonify({"error": "Invalid token"}), 401
 
-    #Check if the student is enrolled in a degree linked to this course
     course = db.session.query(Course).join(
         Enrolment, Course.degree_id == Enrolment.degree_id
     ).filter(
@@ -106,7 +103,6 @@ def get_student_lessons(course_id):
     if not student_id:
         return jsonify({"error": "Invalid token"}), 401
 
-    # Check if student is directly enrolled in the course
     enrolled = db.session.query(Enrolment).join(
         Course, Enrolment.degree_id == Course.degree_id
     ).filter(

@@ -7,13 +7,11 @@ import os
 # Load environment variables from the .env file
 load_dotenv()
 
-# Get the SMTP credentials from the environment
 MAILTRAP_HOST = "live.smtp.mailtrap.io"
 MAILTRAP_PORT = 587
 MAILTRAP_USERNAME =  os.getenv("MAILTRAP_USERNAME")
 MAILTRAP_PASSWORD = os.getenv("MAILTRAP_PASSWORD")
 
-# Create the email
 sender_email = "hello@demomailtrap.com"
 recipient_email = "leontescuadrian8@gmail.com"
 subject = "You are awesome!"
@@ -28,7 +26,7 @@ message.attach(MIMEText(body, "plain"))
 # Send the email via Mailtrap's SMTP
 try:
     with smtplib.SMTP(MAILTRAP_HOST, MAILTRAP_PORT) as server:
-        server.starttls()  # Enable encryption
+        server.starttls()
         server.login(MAILTRAP_USERNAME, MAILTRAP_PASSWORD)
         server.sendmail(sender_email, recipient_email, message.as_string())
         print("Email sent successfully!")

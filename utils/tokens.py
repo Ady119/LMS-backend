@@ -6,7 +6,7 @@ import jwt
 SECRET_KEY = Config.SECRET_KEY 
 
 def get_jwt_token(user_data):
-    """Generate JWT token with user payload"""
+    """Generate JWT token user payload"""
     if not user_data:
         raise ValueError("User data must be provided to generate JWT token")
 

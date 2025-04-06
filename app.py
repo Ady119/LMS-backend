@@ -15,7 +15,6 @@ from routes.students import student_bp
 
 load_dotenv()
 
-# Initialize Flask app
 app = Flask(__name__)
 
 @app.route('/')
@@ -35,7 +34,6 @@ migrate = Migrate(app, db)
 print("Environment:", os.getenv("FLASK_ENV"))
 print("Database URI:", os.getenv("SQLALCHEMY_DATABASE_URI"))
 
-# Register blueprints
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
 app.register_blueprint(admin_bp, url_prefix='/api/admin')
 app.register_blueprint(lecturer_bp, url_prefix='/api/lecturer')

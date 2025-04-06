@@ -6,12 +6,10 @@ from sqlalchemy.orm import joinedload
 from utils.tokens import get_jwt_token, decode_jwt
 from utils.utils import login_required
 from utils.dropbox_service import delete_file_from_dropbox, get_file_link, upload_file, get_temporary_download_link
- 
-
 import dropbox
+
 from models.users import User, db
 from models.announcements import Announcement
-
 from models.courses import Course
 from models.course_lecturers import CourseLecturer
 from models.course_lessons import Lesson
@@ -38,7 +36,8 @@ def add_cors_headers(response):
     origin = request.headers.get('Origin')
     if origin in ["http://localhost:5173", 
                   "http://127.0.0.1:5173", 
-                  "http://localhost:4173", 
+                  "http://localhost:4173",
+                  "https://lms-frontend-5v355z5s0-adrians-projects-6add6cfa.vercel.app", 
                   "lms-frontend-henna-sigma.vercel.app"]:
         response.headers['Access-Control-Allow-Origin'] = origin
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
@@ -46,7 +45,7 @@ def add_cors_headers(response):
         response.headers['Access-Control-Allow-Credentials'] = 'true'
     return response
 
-#__________________________________________________________________________________________ * Courses *__________________________________________________
+#______________________________________________* Courses *_________________________________________________
 
 # fetch all courses
 @lecturer_bp.route("/courses", methods=["GET"])
@@ -103,7 +102,7 @@ def get_lessons(course_id):
 
     return jsonify({"lessons": [lesson.to_dict() for lesson in lessons]}), 200
 
-#__________________________________________________________________________________________ * Lessons *__________________________________________________
+#_______________________________________________ * Lessons *__________________________________________________
 
 #add/create a new  lesson to a course
 @lecturer_bp.route("/courses/<int:course_id>/lessons", methods=["POST"])
@@ -117,7 +116,6 @@ def add_lesson(course_id):
     if not title:
         return jsonify({"error": "Title is required"}), 400
 
-    #Check if the logged-in lecturer owns the course
     course = CourseLecturer.query.filter_by(course_id=course_id, lecturer_id=g.user.get("user_id")).first()
     if not course:
         return jsonify({"error": "You do not have permission to add lessons to this course"}), 403
@@ -138,7 +136,6 @@ def edit_lesson(course_id, lesson_id):
     if not lesson:
         return jsonify({"error": "Lesson not found"}), 404
 
-    # Check if the logged-in lecturer is assigned to the course
     lesson = Lesson.query.join(CourseLecturer, Lesson.course_id == CourseLecturer.course_id).filter(
         Lesson.id == lesson_id,
         Lesson.course_id == course_id,
@@ -169,7 +166,6 @@ def delete_lesson(course_id, lesson_id):
     if not lesson:
         return jsonify({"error": "Lesson not found"}), 404
 
-    # Check if the logged-in lecturer is assigned to the course
     lesson = Lesson.query.join(CourseLecturer, Lesson.course_id == CourseLecturer.course_id).filter(
         Lesson.id == lesson_id,
         Lesson.course_id == course_id,
@@ -261,10 +257,9 @@ def get_lesson_details(course_id, lesson_id):
     return jsonify(lesson_data), 200
 
 
+#                                     **Upload a New Section **
+ #_________________________________________________________________________________________________
 
-
-#                          **Upload a New Section (Handles File Upload)**
-# ------------------------------------------------------------------------------------------------
 @lecturer_bp.route("/courses/<int:course_id>/lessons/<int:lesson_id>/sections", methods=["POST"])
 @login_required
 def add_section(course_id, lesson_id):
@@ -314,7 +309,6 @@ def add_section(course_id, lesson_id):
     calendar_week_id=calendar_week_id
 )
 
-
     db.session.add(new_section)
     db.session.commit()
 
@@ -324,9 +318,8 @@ def add_section(course_id, lesson_id):
     }), 201
 
 
-
 #Edit section
-# ------------------------------------------------------------------------------------------------
+#_________________________________________________________________________________________________
 @lecturer_bp.route("/courses/<int:course_id>/lessons/<int:lesson_id>/sections/<int:section_id>", methods=["PUT"])
 @login_required
 def edit_section(course_id, lesson_id, section_id):
@@ -417,7 +410,7 @@ def edit_section(course_id, lesson_id, section_id):
 
 
 #                                       **Serve Uploaded Files**
-# ------------------------------------------------------------------------------------------------
+# #_________________________________________________________________________________________________
 @lecturer_bp.route("/download/course/<int:course_id>/lesson/<int:lesson_id>/<path:filename>")
 @login_required
 def download_file(course_id, lesson_id, filename):
@@ -434,7 +427,7 @@ def download_file(course_id, lesson_id, filename):
     return jsonify({"message": "File available for download", "file_url": file_url})
 
 #Fetch All Quizzes
-# --------------------------------------------------------------------------------
+#_________________________________________________________________________________________________
 @lecturer_bp.route("/quizzes", methods=["GET"])
 @login_required
 def get_all_quizzes():
@@ -522,8 +515,6 @@ def create_quiz():
         "quiz": new_quiz.to_dict()
     }), 201
 
-
-
 # EDIT a Quiz info
 @lecturer_bp.route("/quizzes/<int:quiz_id>/edit", methods=["PUT"])
 @login_required
@@ -538,7 +529,6 @@ def edit_quiz(quiz_id):
     
     data = request.json
 
-    # Update only the provided fields
     quiz.title = data.get("title", quiz.title)
     quiz.description = data.get("description", quiz.description)
     quiz.max_attempts = data.get("max_attempts", quiz.max_attempts)
@@ -572,9 +562,8 @@ def delete_quiz(quiz_id):
     return jsonify({"message": "Quiz deleted successfully"}), 200
 
 
-
 # GET Questions for a Quiz (Both Types)
-# --------------------------------------------------------------------------------
+#_________________________________________________________________________________________________
 @lecturer_bp.route("/quizzes/<int:quiz_id>/questions", methods=["GET"])
 @login_required
 def get_questions(quiz_id):
@@ -596,7 +585,7 @@ def get_questions(quiz_id):
 
 
 #  CREATE a Short-Answer Question
-# --------------------------------------------------------------------------------
+#_________________________________________________________________________________________________
 @lecturer_bp.route("/quizzes/<int:quiz_id>/questions/short-answer/new", methods=["POST"])
 @login_required
 def add_short_answer_question(quiz_id):
@@ -623,7 +612,7 @@ def add_short_answer_question(quiz_id):
     return jsonify({"message": "Short-answer question added", "question": question.to_dict()}), 201
 
 # CREATE a Multiple-Choice Question
-# --------------------------------------------------------------------------------
+#_________________________________________________________________________________________________
 @lecturer_bp.route("/quizzes/<int:quiz_id>/questions/multiple-choice/new", methods=["POST"])
 @login_required
 def add_multiple_choice_question(quiz_id):
@@ -655,11 +644,10 @@ def add_multiple_choice_question(quiz_id):
     return jsonify({"message": "Multiple-choice question added", "question": question.to_dict()}), 201
 
 #Edit Short-Answer Question
-# --------------------------------------------------------------------------------
+#_________________________________________________________________________________________________
 @lecturer_bp.route("/quizzes/<int:quiz_id>/questions/short-answer/<int:question_id>/edit", methods=["PUT"])
 @login_required
 def edit_short_answer_question(quiz_id, question_id):
-    """Edit an existing short-answer question"""
     quiz = Quiz.query.get(quiz_id)
     if not quiz:
         return jsonify({"error": "Quiz not found"}), 404
@@ -683,7 +671,7 @@ def edit_short_answer_question(quiz_id, question_id):
     return jsonify({"message": "Short-answer question updated successfully", "question": question.to_dict()}), 200
 
 #Edit multiple-choice Question
-# --------------------------------------------------------------------------------
+#_________________________________________________________________________________________________
 @lecturer_bp.route("/quizzes/<int:quiz_id>/questions/multiple-choice/<int:question_id>/edit", methods=["PUT"])
 @login_required
 def edit_multiple_choice_question(quiz_id, question_id):
@@ -705,7 +693,7 @@ def edit_multiple_choice_question(quiz_id, question_id):
         return jsonify({"error": "Invalid question data"}), 400
 
     question.question_text = question_text
-    question.options = options  # Should be a list of choices
+    question.options = options
     question.correct_answer = correct_answer
 
     db.session.commit()
@@ -714,7 +702,7 @@ def edit_multiple_choice_question(quiz_id, question_id):
 
 
 # DELETE a Short-Answer Question
-# --------------------------------------------------------------------------------
+#_________________________________________________________________________________________________
 @lecturer_bp.route("/quizzes/questions/short-answer/<int:question_id>/delete", methods=["DELETE"])
 @login_required
 def delete_short_answer_question(question_id):
@@ -728,7 +716,7 @@ def delete_short_answer_question(question_id):
     return jsonify({"message": "Short-answer question deleted"}), 200
 
 # DELETE a Multiple-Choice Question
-# --------------------------------------------------------------------------------
+#_________________________________________________________________________________________________
 @lecturer_bp.route("/quizzes/questions/multiple-choice/<int:question_id>/delete", methods=["DELETE"])
 @login_required
 def delete_multiple_choice_question(question_id):
@@ -754,7 +742,6 @@ def get_available_assignments():
     return jsonify([assignment.to_dict() for assignment in assignments]), 200
 
 
-#Get all assignments for a lesson
 @lecturer_bp.route("/lessons/<int:lesson_id>/assignments", methods=["GET"], endpoint="get_lesson_assignments")
 @login_required
 def get_assignments(lesson_id):
@@ -817,9 +804,6 @@ def create_assignment():
         "message": "Assignment created successfully",
         "assignment": new_assignment.to_dict()
     }), 201
-
-
-    user_id = g.user.get("user_id")
 
 #Edit assignment
 @lecturer_bp.route("/assignments/<int:assignment_id>", methods=["PUT"])
@@ -889,7 +873,6 @@ def edit_assignment(assignment_id):
         "assignment": assignment.to_dict()
     }), 200
 
-
 #Delete an assignment
 @lecturer_bp.route("/assignments/<int:assignment_id>", methods=["DELETE"], endpoint="delete_assignment")
 @login_required
@@ -919,8 +902,6 @@ def delete_assignment(assignment_id):
     db.session.commit()
 
     return jsonify({"message": "Assignment deleted successfully"}), 200
-
-
 
 #Download unassigned assignment route
 @lecturer_bp.route("/download/assignments/<path:filename>")
@@ -994,7 +975,6 @@ def get_lecturer_dashboard():
         LessonSection.assignment_id.isnot(None)
     ).count()
 
-    #  Get students via enrolments in degrees related to lecturer’s courses
     total_students = db.session.query(Enrolment.student_id).join(Degree).join(Course).filter(
         Course.id.in_(course_ids)
     ).distinct().count()
@@ -1026,6 +1006,7 @@ def get_lecturer_dashboard():
         "avg_score": avg_score
     }), 200
 
+#lecturer calendar
 @lecturer_bp.route("/calendar", methods=["GET"])
 @login_required
 def get_lecturer_calendar_data():
@@ -1053,7 +1034,7 @@ def get_lecturer_calendar_data():
             "week_label": week.label,
         })
 
-    # Include break-only weeks too
+    # Include break weeks
     break_weeks = CalendarWeek.query.filter_by(is_break=True, calendar_id=lessons[0].course.degree.calendar_id).all() if lessons else []
     for week in break_weeks:
         events.append({
@@ -1153,6 +1134,7 @@ def get_course_announcements(course_id):
             "created_at": a.created_at.isoformat()
         } for a in announcements
     ])
+    
 #update announ.
 @lecturer_bp.route("/courses/<int:course_id>/announcements/<int:announcement_id>", methods=["PUT"])
 @login_required

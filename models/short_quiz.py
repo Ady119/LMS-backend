@@ -8,7 +8,6 @@ class ShortAnswerQuestion(db.Model):
     question_text = db.Column(db.Text, nullable=False)
     correct_answer = db.Column(db.Text, nullable=False)
 
-     # Import Quiz inside the file to avoid circular dependency
     from models.quizzes import Quiz
     quiz = db.relationship("Quiz", back_populates="short_answer_questions")
 

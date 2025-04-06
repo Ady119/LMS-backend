@@ -14,14 +14,16 @@ from utils.utils import login_required
 
 admin_bp = Blueprint('admin', __name__)
 
-# Helper function to get authorized course
 def get_authorized_course(course_id, user_id):
     return Course.query.filter_by(id=course_id, instructor_id=user_id).first()
 
 @admin_bp.after_request
 def add_cors_headers(response):
     origin = request.headers.get('Origin')
-    if origin in ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:4173", "lms-frontend-henna-sigma.vercel.app"]:
+    if origin in ["http://localhost:5173", "http://127.0.0.1:5173", 
+                  "http://localhost:4173",
+                  "https://lms-frontend-5v355z5s0-adrians-projects-6add6cfa.vercel.app", 
+                  "lms-frontend-henna-sigma.vercel.app"]:
         response.headers['Access-Control-Allow-Origin'] = origin
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
         response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
@@ -71,8 +73,6 @@ def add_user():
         return jsonify({"error": "Unauthorized"}), 403
 
     data = request.get_json()
-
-    # Extract user details
     username = data.get("username")
     email = data.get("email")
     full_name = data.get("full_name")
@@ -105,7 +105,6 @@ def add_user():
     db.session.commit()
 
     return jsonify({"message": "User created successfully!", "user_id": new_user.id}), 201
-
 
 @admin_bp.route('/degrees', methods=['GET', 'POST'])
 @login_required
@@ -193,7 +192,6 @@ def assign_lecturer():
 
     return jsonify({"message": f"Lecturer {lecturer.full_name} assigned to {course.title}."}), 200
 
-
 #enrol/add student to a course
 @admin_bp.route('/enrol-student', methods=['POST'])
 def enrol_student():
@@ -231,11 +229,9 @@ def get_enrolled_degrees(student_id):
         Enrolment.student_id == student_id
     ).all()
 
-    # Ensure each row is converted to a dictionary correctly
     return jsonify({
         "enrolled_degrees": [{"degree_id": row.degree_id, "name": row.name} for row in enrolments]
     })
-
 
 # Retrieve all students
 @admin_bp.route('/users/students', methods=['GET'])
@@ -306,7 +302,6 @@ def upload_calendar():
         db.session.add(calendar)
         db.session.flush()
 
-        # Create CalendarWeek entries
         for w in weeks:
             db.session.add(CalendarWeek(
                 calendar_id=calendar.id,
@@ -329,7 +324,6 @@ def upload_calendar():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": f"Failed to process file: {str(e)}"}), 500
-
 
 @admin_bp.route('/calendars/<int:calendar_id>', methods=['GET'])
 def get_calendar_weeks(calendar_id):

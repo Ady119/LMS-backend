@@ -3,8 +3,7 @@ from flask import request, jsonify, g
 from utils.tokens import decode_jwt
 import os
 
-SECRET_KEY = os.environ.get("SECRET_KEY", "your-default-secret-key")
-
+SECRET_KEY = os.environ.get("SECRET_KEY", "default-secret-key")
 
 def login_required(f):
     @wraps(f)

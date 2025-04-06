@@ -2,16 +2,13 @@ import os
 import dropbox
 from dropbox.exceptions import ApiError
 
-# Load securely from environment variables
 DROPBOX_APP_KEY = os.getenv("DROPBOX_APP_KEY")
 DROPBOX_APP_SECRET = os.getenv("DROPBOX_APP_SECRET")
 DROPBOX_REFRESH_TOKEN = os.getenv("DROPBOX_REFRESH_TOKEN")
 
-# Validation
 if not all([DROPBOX_APP_KEY, DROPBOX_APP_SECRET, DROPBOX_REFRESH_TOKEN]):
     raise ValueError("Missing Dropbox credentials! Set DROPBOX_APP_KEY, DROPBOX_APP_SECRET, and DROPBOX_REFRESH_TOKEN.")
 
-# Create Dropbox client with auto-refresh
 dbx = dropbox.Dropbox(
     oauth2_refresh_token=DROPBOX_REFRESH_TOKEN,
     app_key=DROPBOX_APP_KEY,
@@ -22,10 +19,8 @@ def upload_file(file, filename, folder="assignments"):
     dropbox_path = f"/AchievED-LMS/{folder}/{filename}"
 
     try:
-        # Upload the file
         dbx.files_upload(file.read(), dropbox_path, mode=dropbox.files.WriteMode("overwrite"))
 
-        # Try to find existing shared link
         shared_link = None
         try:
             existing_links = dbx.sharing_list_shared_links(path=dropbox_path).links
@@ -34,7 +29,6 @@ def upload_file(file, filename, folder="assignments"):
         except ApiError as e:
             print(f"Warning: Could not list shared links - {e}")
 
-        # Create if missing
         if not shared_link:
             shared_link = dbx.sharing_create_shared_link_with_settings(dropbox_path)
 

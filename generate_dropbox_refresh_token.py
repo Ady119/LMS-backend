@@ -3,7 +3,7 @@ import requests
 from urllib.parse import urlencode
 from dotenv import load_dotenv
 
-load_dotenv()  # Loads values from .env
+load_dotenv()
 
 APP_KEY = os.getenv("DROPBOX_APP_KEY")
 APP_SECRET = os.getenv("DROPBOX_APP_SECRET")

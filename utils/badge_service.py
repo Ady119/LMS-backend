@@ -111,16 +111,6 @@ def evaluate_timeliness_badges(student_id):
         if b: badges.append(b)
     return badges
 
-from models import db, Badge, UserBadge, SectionProgress, QuizAttempt
-from sqlalchemy import func
-from models.assignment import Assignment
-from models.assignment_submission import AssignmentSubmission
-from models.courses import Course
-from models.course_lessons import Lesson
-from models.lesson_section import LessonSection
-from models.section_progress import SectionProgress
-from datetime import datetime
-
 def award_badge(student_id, badge_name):
     badge = Badge.query.filter_by(name=badge_name).first()
     if not badge:
@@ -236,6 +226,6 @@ def evaluate_all_badges(student_id, course_id=None, perfect_quiz_score=False):
         new_badges += evaluate_course_completion_badges(student_id, course_id)
 
     if new_badges:
-        db.session.commit()  # ✅ This is what actually saves them
+        db.session.commit()
 
     return new_badges
