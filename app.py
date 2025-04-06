@@ -28,7 +28,8 @@ CORS(app, resources={
     r"/*": {
         "origins": [
             "https://lms-frontend-henna-sigma.vercel.app",                        # production
-            "https://lms-frontend-5v355z5s0-adrians-projects-6add6cfa.vercel.app" # preview
+            "https://lms-frontend-5v355z5s0-adrians-projects-6add6cfa.vercel.app",
+            "https://lms-frontend-git-feature-offli-aed0ff-adrians-projects-6add6cfa.vercel.app", # preview
         ],
         "supports_credentials": True
     }

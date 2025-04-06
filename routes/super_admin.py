@@ -23,6 +23,7 @@ def add_cors_headers(response):
     if origin in ["http://localhost:5173", "http://127.0.0.1:5173", 
                   "http://localhost:4173",
                   "https://lms-frontend-5v355z5s0-adrians-projects-6add6cfa.vercel.app", 
+                  "https://lms-frontend-git-feature-offli-aed0ff-adrians-projects-6add6cfa.vercel.app",
                   "lms-frontend-henna-sigma.vercel.app"]:
         response.headers['Access-Control-Allow-Origin'] = origin
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
