@@ -596,11 +596,12 @@ def add_short_answer_question(quiz_id):
     db.session.add(question)
     db.session.commit()
 
-    return jsonify({"message": "Short-answer question added", "question": question.to_dict()}), 201
-
+    return jsonify({
+        "message": "Short-answer question added",
+        "question": question.to_dict()
+    }), 201
 
 # CREATE a Multiple-Choice Question
-#_________________________________________________________________________________________________
 @lecturer_bp.route("/quizzes/<int:quiz_id>/questions/multiple-choice/new", methods=["POST"])
 @login_required
 def add_multiple_choice_question(quiz_id):
@@ -613,6 +614,7 @@ def add_multiple_choice_question(quiz_id):
 
     if not question_text or not options or correct_answer is None:
         return jsonify({"error": "Invalid question data"}), 400
+
     if len(options) < 2:
         return jsonify({"error": "Multiple-choice questions need at least two options"}), 400
 
@@ -627,7 +629,10 @@ def add_multiple_choice_question(quiz_id):
     db.session.add(question)
     db.session.commit()
 
-    return jsonify({"message": "Multiple-choice question added", "question": question.to_dict()}), 201
+    return jsonify({
+        "message": "Multiple-choice question added",
+        "question": question.to_dict()
+    }), 201
 
 #Edit Answer Question
 #_________________________________________________________________________________________________
@@ -641,19 +646,31 @@ def edit_quiz_question(quiz_id, question_id):
         return jsonify({"error": "Question not found"}), 404
 
     data = request.json
-    question.question_text = data.get("question_text", question.question_text)
-    question.correct_answer = data.get("correct_answer", question.correct_answer)
+    question_text = data.get("question_text")
+    correct_answer = data.get("correct_answer")
+    question_type = data.get("question_type", question.question_type)
 
-    # Only update options if it's a multiple-choice question
-    if question.question_type == "multiple_choice":
-        options = data.get("options", question.options)
+    if not question_text or correct_answer is None:
+        return jsonify({"error": "Missing fields"}), 400
+
+    question.question_text = question_text
+    question.correct_answer = correct_answer
+    question.question_type = question_type
+
+    if question_type == "multiple_choice":
+        options = data.get("options")
         if not options or len(options) < 2:
             return jsonify({"error": "Multiple-choice questions need at least two options"}), 400
         question.options = options
+    else:
+        question.options = None
 
     db.session.commit()
 
-    return jsonify({"message": "Question updated", "question": question.to_dict()}), 200
+    return jsonify({
+        "message": "Question updated",
+        "question": question.to_dict()
+    }), 200
 
 # DELETE a Short-Answer Question
 #_________________________________________________________________________________________________
