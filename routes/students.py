@@ -451,7 +451,6 @@ def get_quiz_results(quiz_id):
 @student_bp.route("/quiz/<int:quiz_id>/auto-submit", methods=["POST"])
 @login_required
 def auto_submit_quiz(quiz_id):
-    """Automatically submit the quiz if the student loses connection or time expires."""
     data = request.get_json()
     student_id = g.user.get("user_id")
     answers = data.get("answers", {})
@@ -480,33 +479,43 @@ def auto_submit_quiz(quiz_id):
 
     # Grade Multiple Choice
     for question in quiz.multiple_choice_questions:
-        user_answer = answers.get(str(question.id), "").strip().lower()
+        key = f"mcq-{question.id}"
+        user_answer = answers.get(key, "").strip().lower()
         correct_answer = question.correct_answer.strip().lower()
         is_correct = user_answer == correct_answer
-        if is_correct:
-            score += 1
+
         feedback.append({
-            "question_id": question.id,
-            "submitted_answer": user_answer,
+            "question_id": key,
+            "question_text": question.question_text,
+            "submitted_answer": user_answer or "No Answer",
             "correct_answer": correct_answer,
             "is_correct": is_correct
         })
 
+        if is_correct:
+            score += 1
+
+
     # Grade Short Answer
     for question in quiz.short_answer_questions:
-        user_answer = answers.get(str(question.id), "").strip().lower()
+        key = f"short-{question.id}"
+        user_answer = answers.get(key, "").strip().lower()
         correct_answer = question.correct_answer.strip().lower()
         is_correct = user_answer == correct_answer
+
+        feedback.append({
+            "question_id": key,
+            "question_text": question.question_text,
+            "submitted_answer": user_answer or "No Answer",
+            "correct_answer": correct_answer,
+            "is_correct": is_correct
+        })
+
         if is_correct:
             score += 1
         else:
             needs_review = True
-        feedback.append({
-            "question_id": question.id,
-            "submitted_answer": user_answer,
-            "correct_answer": correct_answer,
-            "is_correct": is_correct
-        })
+
 
     percentage_score = (score / total_questions) * 100 if total_questions > 0 else 0
     passed = percentage_score >= quiz.passing_score
