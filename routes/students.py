@@ -23,7 +23,6 @@ from models.course_lessons import Lesson
 from models.lesson_section import LessonSection
 from models.assignment import Assignment
 from models.quizzes import Quiz
-from models.multiple_choice import MultipleChoiceQuestion
 from models.short_quiz import ShortAnswerQuestion  
 from models.quiz_attempts import QuizAttempt
 from models.quiz_attempts_answers import QuizAttemptAnswer
@@ -241,23 +240,19 @@ def get_quiz_details(quiz_id):
     if not quiz:
         return jsonify({"error": "Quiz not found"}), 404
 
-    # Fetch total questions
-    short_answer_count = ShortAnswerQuestion.query.filter_by(quiz_id=quiz_id).count()
-    multiple_choice_count = MultipleChoiceQuestion.query.filter_by(quiz_id=quiz_id).count()
-    total_questions = short_answer_count + multiple_choice_count
+    total_questions = len(quiz.questions)
 
-    # Fetch previous attempts count
+    # Fetch attempt info
     existing_attempts = QuizAttempt.query.filter_by(student_id=student_id, quiz_id=quiz_id).count()
     attempts_left = max(0, quiz.max_attempts - existing_attempts)
 
-    # Fetch latest attempt (if exists)
     latest_attempt = (
         QuizAttempt.query
         .filter_by(student_id=student_id, quiz_id=quiz_id)
         .order_by(QuizAttempt.completed_at.desc())
         .first()
     )
-    attempt_id = latest_attempt.id if latest_attempt else None 
+    attempt_id = latest_attempt.id if latest_attempt else None
 
     return jsonify({
         "quiz_id": quiz.id,
@@ -269,29 +264,30 @@ def get_quiz_details(quiz_id):
         "passing_score": quiz.passing_score,
         "total_questions": total_questions,
         "deadline": quiz.deadline.isoformat() if quiz.deadline else None,
-        "attempt_id": attempt_id, 
-        "multiple_choice_questions": [{"id": q.id, "question_text": q.question_text, "options": q.options} for q in quiz.multiple_choice_questions],
-        "short_answer_questions": [{"id": q.id, "question_text": q.question_text} for q in quiz.short_answer_questions],
+        "attempt_id": attempt_id,
+        "questions": [
+            {
+                "id": q.id,
+                "question_text": q.question_text,
+                "question_type": q.question_type,
+                "options": q.options if q.question_type == "mcq" else None
+            }
+            for q in quiz.questions
+        ],
     }), 200
-
 
 # Start a Quiz Attempt
 @student_bp.route("/quiz/<int:quiz_id>/start", methods=["GET"])
 @login_required
 def start_quiz(quiz_id):
-    """Fetch quiz details before starting, but do NOT create an attempt."""
     student_id = g.user.get("user_id")
 
     quiz = Quiz.query.get(quiz_id)
     if not quiz:
         return jsonify({"error": "Quiz not found"}), 404
 
-    # Fetch total questions
-    short_answer_count = ShortAnswerQuestion.query.filter_by(quiz_id=quiz_id).count()
-    multiple_choice_count = MultipleChoiceQuestion.query.filter_by(quiz_id=quiz_id).count()
-    total_questions = short_answer_count + multiple_choice_count
+    total_questions = len(quiz.questions)
 
-    # Fetch previous attempts count
     existing_attempts = QuizAttempt.query.filter_by(student_id=student_id, quiz_id=quiz_id).count()
     attempts_left = max(0, quiz.max_attempts - existing_attempts)
 
