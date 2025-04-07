@@ -5,7 +5,7 @@ db = SQLAlchemy()
 
 # Import models
 from models.users import User
-
+from models.quiz_questions import QuizQuestion
 from models.section_progress import SectionProgress
 from models.badges import Badge, UserBadge
 from models.announcements import Announcement

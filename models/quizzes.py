@@ -1,6 +1,7 @@
 from models import db
 from sqlalchemy.orm import relationship
 from datetime import datetime
+
 class Quiz(db.Model):
     __tablename__ = "quizzes"
 
@@ -13,15 +14,16 @@ class Quiz(db.Model):
     immediate_feedback = db.Column(db.Boolean, nullable=False, default=False)
     passing_score = db.Column(db.Float, nullable=True, default=50.0)
     deadline = db.Column(db.DateTime, nullable=True)
-    
+
     lecturer_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     lecturer = db.relationship("User", back_populates="quizzes")
 
+    questions = db.relationship("QuizQuestion", back_populates="quiz", cascade="all, delete-orphan")
+
     @property
     def total_questions(self):
-        """Dynamically count total questions without storing in the database"""
-        return len(self.short_answer_questions) + len(self.multiple_choice_questions)
-    
+        return len(self.questions)
+
     def __repr__(self):
         return f"<Quiz {self.title}>"
 
@@ -41,11 +43,5 @@ class Quiz(db.Model):
                 else (self.deadline.isoformat() if isinstance(self.deadline, datetime) else None)
             ),
             "lecturer_id": self.lecturer_id,
-            "short_answer_questions": [q.to_dict() for q in self.short_answer_questions],
-            "multiple_choice_questions": [q.to_dict() for q in self.multiple_choice_questions],
+            "questions": [q.to_dict() for q in self.questions],
         }
-from .short_quiz import ShortAnswerQuestion
-from .multiple_choice import MultipleChoiceQuestion
-
-Quiz.short_answer_questions = db.relationship("ShortAnswerQuestion", back_populates="quiz", cascade="all, delete-orphan")
-Quiz.multiple_choice_questions = db.relationship("MultipleChoiceQuestion", back_populates="quiz", cascade="all, delete-orphan")
