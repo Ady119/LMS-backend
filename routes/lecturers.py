@@ -559,7 +559,6 @@ def delete_quiz(quiz_id):
 
 
 # GET Questions for a Quiz (Both Types)
-#_________________________________________________________________________________________________
 @lecturer_bp.route("/quizzes/<int:quiz_id>/questions", methods=["GET"])
 @login_required
 def get_questions(quiz_id):
@@ -580,8 +579,7 @@ def get_questions(quiz_id):
     }), 200
 
 
-#  CREATE a Short-Answer Question
-#_________________________________________________________________________________________________
+# CREATE a Short-Answer Question
 @lecturer_bp.route("/quizzes/<int:quiz_id>/questions/short-answer/new", methods=["POST"])
 @login_required
 def add_short_answer_question(quiz_id):
