@@ -568,10 +568,10 @@ def get_questions(quiz_id):
         return jsonify({"error": "Quiz not found"}), 404
 
     short_answer_questions = [
-        {**q.to_dict(), "id": f"short-{q.id}"} for q in quiz.short_answer_questions
+        {**q.to_dict(), "id": f"short-{q.id}"} for q in quiz.questions if q.question_type == "short_answer"
     ]
     multiple_choice_questions = [
-        {**q.to_dict(), "id": f"multi-{q.id}"} for q in quiz.multiple_choice_questions
+        {**q.to_dict(), "id": f"multi-{q.id}"} for q in quiz.questions if q.question_type == "multiple_choice"
     ]
 
     return jsonify({
