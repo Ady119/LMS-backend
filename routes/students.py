@@ -311,7 +311,6 @@ def start_quiz(quiz_id):
 @student_bp.route("/quiz/<int:quiz_id>/submit", methods=["POST"])
 @login_required
 def submit_quiz(quiz_id):
-    """Grades the quiz and provides feedback to students."""
     data = request.get_json()
     student_id = g.user.get("user_id")
     answers = data.get("answers", {})
@@ -385,7 +384,8 @@ def submit_quiz(quiz_id):
 
     percentage_score = (score / total_questions) * 100 if total_questions > 0 else 0
     passed = percentage_score >= quiz.passing_score
-
+    new_badges = []
+    
     # Store Attempt Data
     attempt.score = percentage_score
     attempt.pass_status = passed
