@@ -566,18 +566,11 @@ def get_questions(quiz_id):
     if not quiz:
         return jsonify({"error": "Quiz not found"}), 404
 
-    short_answer_questions = [
-        {**q.to_dict(), "id": f"short-{q.id}"} for q in quiz.questions if q.question_type == "short_answer"
-    ]
-    multiple_choice_questions = [
-        {**q.to_dict(), "id": f"multi-{q.id}"} for q in quiz.questions if q.question_type == "multiple_choice"
+    questions = [
+        {**q.to_dict(), "id": str(q.id)} for q in quiz.questions
     ]
 
-    return jsonify({
-        "short_answer_questions": short_answer_questions,
-        "multiple_choice_questions": multiple_choice_questions
-    }), 200
-
+    return jsonify({"questions": questions}), 200
 
 # CREATE a Short-Answer Question
 @lecturer_bp.route("/quizzes/<int:quiz_id>/questions/short-answer/new", methods=["POST"])
