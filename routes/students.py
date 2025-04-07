@@ -315,20 +315,14 @@ def submit_quiz(quiz_id):
     student_id = g.user.get("user_id")
     answers = data.get("answers", {})
 
-    print(f"Received Answers from Student {student_id}: {answers}")
-    if not answers:
-        print("ERROR: No answers received in the request!")
-
     quiz = Quiz.query.get(quiz_id)
     if not quiz:
         return jsonify({"error": "Quiz not found"}), 404
 
-    # Check max attempts
     existing_attempts = QuizAttempt.query.filter_by(student_id=student_id, quiz_id=quiz_id).count()
     if existing_attempts >= quiz.max_attempts:
         return jsonify({"error": "No attempts left"}), 403
 
-    # Start new attempt
     attempt = QuizAttempt(
         student_id=student_id,
         quiz_id=quiz_id,
@@ -339,37 +333,14 @@ def submit_quiz(quiz_id):
     db.session.flush()
 
     score = 0
-    total_questions = len(quiz.multiple_choice_questions) + len(quiz.short_answer_questions)
-    needs_review = False
     feedback = []
+    needs_review = False
 
-    # Grade MCQs
-    for question in quiz.multiple_choice_questions:
-        key = f"mcq-{question.id}"
+    for question in quiz.questions:
+        key = f"{question.question_type}-{question.id}"
         user_answer = answers.get(key, "").strip().lower()
-        correct_answer = question.correct_answer.strip().lower()
+        correct_answer = (question.correct_answer or "").strip().lower()
         is_correct = user_answer == correct_answer
-
-        print(f"[MCQ] Question {question.id} | Submitted: '{user_answer}' | Correct: '{correct_answer}' | Match: {is_correct}")
-
-        feedback.append({
-            "question_id": key, 
-            "question_text": question.question_text,
-            "submitted_answer": user_answer or "No Answer",
-            "correct_answer": correct_answer,
-            "is_correct": is_correct,
-        })
-
-        if is_correct:
-            score += 1
-
-    for question in quiz.short_answer_questions:
-        key = f"short-{question.id}"
-        user_answer = answers.get(key, "").strip().lower()
-        correct_answer = question.correct_answer.strip().lower()
-        is_correct = user_answer == correct_answer
-
-        print(f"[Short] Question {question.id} | Submitted: '{user_answer}' | Correct: '{correct_answer}' | Match: {is_correct}")
 
         feedback.append({
             "question_id": key,
@@ -384,12 +355,11 @@ def submit_quiz(quiz_id):
         else:
             needs_review = True
 
-    percentage_score = (score / total_questions) * 100 if total_questions > 0 else 0
-    passed = percentage_score >= quiz.passing_score
-    new_badges = []
+    percentage = (score / len(quiz.questions)) * 100 if quiz.questions else 0
+    passed = percentage >= quiz.passing_score
 
-    # Store results
-    attempt.score = percentage_score
+    # Save attempt results
+    attempt.score = percentage
     attempt.pass_status = passed
     attempt.needs_review = needs_review
     attempt.answers_temp = feedback
@@ -402,14 +372,19 @@ def submit_quiz(quiz_id):
         ).first()
         if not existing_progress:
             db.session.add(SectionProgress(student_id=student_id, section_id=section.id))
-            db.session.commit()
-            new_badges = evaluate_all_badges(student_id, perfect_quiz_score=(percentage_score == 100))
+            new_badges = evaluate_all_badges(student_id, perfect_quiz_score=(percentage == 100))
+        else:
+            new_badges = []
+    else:
+        new_badges = []
+
+    db.session.commit()
 
     return jsonify({
-        "score": percentage_score,
+        "score": percentage,
         "passed": passed,
         "needs_review": needs_review,
-        "total_questions": total_questions,
+        "total_questions": len(quiz.questions),
         "attempts_used": attempt.attempts_used,
         "attempts_left": max(0, quiz.max_attempts - attempt.attempts_used),
         "feedback": feedback,
@@ -422,8 +397,6 @@ def submit_quiz(quiz_id):
 @login_required
 def get_quiz_results(quiz_id):
     student_id = g.user.get("user_id")
-
-    # Get the latest completed attempt
     attempt = QuizAttempt.query.filter_by(
         student_id=student_id, quiz_id=quiz_id
     ).order_by(QuizAttempt.completed_at.desc()).first()
@@ -431,21 +404,14 @@ def get_quiz_results(quiz_id):
     if not attempt:
         return jsonify({"error": "No attempts found"}), 404
 
-    # Ensure feedback is always a valid list
-    feedback = attempt.answers_temp if attempt.answers_temp else []
-
-    response_data = {
+    return jsonify({
         "score": attempt.score,
         "pass_status": attempt.pass_status,
         "needs_review": attempt.needs_review,
         "attempts_used": attempt.attempts_used,
         "attempts_left": max(0, attempt.quiz.max_attempts - attempt.attempts_used),
-        "feedback": feedback
-    }
-
-    return jsonify(response_data), 200
-
-
+        "feedback": attempt.answers_temp or []
+    }), 200
 
 #Auto-Submit Quiz on Timeout
 @student_bp.route("/quiz/<int:quiz_id>/auto-submit", methods=["POST"])
