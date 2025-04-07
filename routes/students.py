@@ -307,7 +307,7 @@ def start_quiz(quiz_id):
         "deadline": quiz.deadline.isoformat() if quiz.deadline else None,
     }), 200
 
-
+#submit quiz
 @student_bp.route("/quiz/<int:quiz_id>/submit", methods=["POST"])
 @login_required
 def submit_quiz(quiz_id):
@@ -315,7 +315,7 @@ def submit_quiz(quiz_id):
     student_id = g.user.get("user_id")
     answers = data.get("answers", {})
 
-    print(f"Received Answers from Student {student_id}: {answers}")  
+    print(f"Received Answers from Student {student_id}: {answers}")
     if not answers:
         print("ERROR: No answers received in the request!")
 
@@ -328,7 +328,7 @@ def submit_quiz(quiz_id):
     if existing_attempts >= quiz.max_attempts:
         return jsonify({"error": "No attempts left"}), 403
 
-    # Create new attempt
+    # Start new attempt
     attempt = QuizAttempt(
         student_id=student_id,
         quiz_id=quiz_id,
@@ -353,17 +353,16 @@ def submit_quiz(quiz_id):
         print(f"[MCQ] Question {question.id} | Submitted: '{user_answer}' | Correct: '{correct_answer}' | Match: {is_correct}")
 
         feedback.append({
-            "question_id": key,
+            "question_id": key, 
             "question_text": question.question_text,
             "submitted_answer": user_answer or "No Answer",
             "correct_answer": correct_answer,
-            "is_correct": is_correct
+            "is_correct": is_correct,
         })
 
         if is_correct:
             score += 1
 
-    # Grade Short Answers
     for question in quiz.short_answer_questions:
         key = f"short-{question.id}"
         user_answer = answers.get(key, "").strip().lower()
@@ -377,7 +376,7 @@ def submit_quiz(quiz_id):
             "question_text": question.question_text,
             "submitted_answer": user_answer or "No Answer",
             "correct_answer": correct_answer,
-            "is_correct": is_correct
+            "is_correct": is_correct,
         })
 
         if is_correct:
@@ -389,7 +388,7 @@ def submit_quiz(quiz_id):
     passed = percentage_score >= quiz.passing_score
     new_badges = []
 
-    # Save attempt results
+    # Store results
     attempt.score = percentage_score
     attempt.pass_status = passed
     attempt.needs_review = needs_review
@@ -416,6 +415,7 @@ def submit_quiz(quiz_id):
         "feedback": feedback,
         "new_badges": new_badges
     }), 200
+
 
 #Get Quiz Results
 @student_bp.route("/quiz/<int:quiz_id>/results", methods=["GET"])
