@@ -17,4 +17,6 @@ class ShortAnswerQuestion(db.Model):
             "quiz_id": self.quiz_id,
             "question_text": self.question_text,
             "correct_answer": self.correct_answer,
+            "type": "short"
         }
+

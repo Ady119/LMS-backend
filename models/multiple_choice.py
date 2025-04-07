@@ -19,4 +19,6 @@ class MultipleChoiceQuestion(db.Model):
             "question_text": self.question_text,
             "options": self.options,
             "correct_answer": self.correct_answer,
+            "type": "mcq"
         }
+
