@@ -22,8 +22,6 @@ from models.course_lessons import Lesson
 from models.lesson_section import LessonSection
 
 from models.quizzes import Quiz
-from models.short_quiz import ShortAnswerQuestion
-from models.multiple_choice import MultipleChoiceQuestion
 from models.quiz_attempts import QuizAttempt
 from models.quiz_attempts_answers import QuizAttemptAnswer
 from models.quiz_results import QuizResult

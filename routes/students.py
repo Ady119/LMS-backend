@@ -23,7 +23,6 @@ from models.course_lessons import Lesson
 from models.lesson_section import LessonSection
 from models.assignment import Assignment
 from models.quizzes import Quiz
-from models.short_quiz import ShortAnswerQuestion  
 from models.quiz_attempts import QuizAttempt
 from models.quiz_attempts_answers import QuizAttemptAnswer
 from models.quiz_results import QuizResult

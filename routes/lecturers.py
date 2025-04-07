@@ -15,11 +15,10 @@ from models.course_lecturers import CourseLecturer
 from models.course_lessons import Lesson
 from models.lesson_section import LessonSection
 from models.quizzes import Quiz
-from models.multiple_choice import MultipleChoiceQuestion
-from models.short_quiz import ShortAnswerQuestion  
 from models.assignment import Assignment
 from models.academic_calendar import AcademicCalendar
 from models.calendar_week import CalendarWeek
+from models.quiz_questions import QuizQuestion
 from models.enrolments import Enrolment
 from models.assignment_submission import AssignmentSubmission
 from models.quiz_attempts import QuizAttempt
@@ -452,12 +451,11 @@ def get_quiz(quiz_id):
 def get_quiz(quiz_id):
     user_id = g.user.get("user_id")
     quiz = Quiz.query.get_or_404(quiz_id)
-    
+
     if quiz.lecturer_id != user_id:
         return jsonify({"error": "Unauthorized"}), 403
 
-    short_answer_questions = ShortAnswerQuestion.query.filter_by(quiz_id=quiz_id).all()
-    multiple_choice_questions = MultipleChoiceQuestion.query.filter_by(quiz_id=quiz_id).all()
+    questions = QuizQuestion.query.filter_by(quiz_id=quiz_id).all()
 
     return jsonify({
         "id": quiz.id,
@@ -469,11 +467,9 @@ def get_quiz(quiz_id):
         "immediate_feedback": quiz.immediate_feedback,
         "passing_score": quiz.passing_score,
         "deadline": quiz.deadline.strftime("%Y-%m-%d") if quiz.deadline else None,
-        "short_answer_questions": [q.to_dict() for q in short_answer_questions],
-        "multiple_choice_questions": [q.to_dict() for q in multiple_choice_questions],
+        "questions": [q.to_dict() for q in questions],
     }), 200
 
-    user_id = g.user.get("user_id")
 
 #CREATE a New Quiz
 @lecturer_bp.route("/quizzes/new", methods=["POST"])
@@ -589,9 +585,7 @@ def get_questions(quiz_id):
 @lecturer_bp.route("/quizzes/<int:quiz_id>/questions/short-answer/new", methods=["POST"])
 @login_required
 def add_short_answer_question(quiz_id):
-    quiz = Quiz.query.get(quiz_id)
-    if not quiz:
-        return jsonify({"error": "Quiz not found"}), 404
+    quiz = Quiz.query.get_or_404(quiz_id)
 
     data = request.json
     question_text = data.get("question_text")
@@ -600,10 +594,12 @@ def add_short_answer_question(quiz_id):
     if not question_text or correct_answer is None:
         return jsonify({"error": "Invalid question data"}), 400
 
-    question = ShortAnswerQuestion (
+    question = QuizQuestion(
         quiz_id=quiz_id,
         question_text=question_text,
-        correct_answer=correct_answer
+        question_type="short_answer",
+        correct_answer=correct_answer,
+        options=None
     )
 
     db.session.add(question)
@@ -611,14 +607,13 @@ def add_short_answer_question(quiz_id):
 
     return jsonify({"message": "Short-answer question added", "question": question.to_dict()}), 201
 
+
 # CREATE a Multiple-Choice Question
 #_________________________________________________________________________________________________
 @lecturer_bp.route("/quizzes/<int:quiz_id>/questions/multiple-choice/new", methods=["POST"])
 @login_required
 def add_multiple_choice_question(quiz_id):
-    quiz = Quiz.query.get(quiz_id)
-    if not quiz:
-        return jsonify({"error": "Quiz not found"}), 404
+    quiz = Quiz.query.get_or_404(quiz_id)
 
     data = request.json
     question_text = data.get("question_text")
@@ -627,15 +622,15 @@ def add_multiple_choice_question(quiz_id):
 
     if not question_text or not options or correct_answer is None:
         return jsonify({"error": "Invalid question data"}), 400
-
     if len(options) < 2:
         return jsonify({"error": "Multiple-choice questions need at least two options"}), 400
 
-    question = MultipleChoiceQuestion(
+    question = QuizQuestion(
         quiz_id=quiz_id,
         question_text=question_text,
-        options=options,
-        correct_answer=correct_answer
+        question_type="multiple_choice",
+        correct_answer=correct_answer,
+        options=options
     )
 
     db.session.add(question)
@@ -643,91 +638,47 @@ def add_multiple_choice_question(quiz_id):
 
     return jsonify({"message": "Multiple-choice question added", "question": question.to_dict()}), 201
 
-#Edit Short-Answer Question
+#Edit Answer Question
 #_________________________________________________________________________________________________
-@lecturer_bp.route("/quizzes/<int:quiz_id>/questions/short-answer/<int:question_id>/edit", methods=["PUT"])
+@lecturer_bp.route("/quizzes/<int:quiz_id>/questions/<int:question_id>/edit", methods=["PUT"])
 @login_required
-def edit_short_answer_question(quiz_id, question_id):
-    quiz = Quiz.query.get(quiz_id)
-    if not quiz:
-        return jsonify({"error": "Quiz not found"}), 404
+def edit_quiz_question(quiz_id, question_id):
+    quiz = Quiz.query.get_or_404(quiz_id)
+    question = QuizQuestion.query.filter_by(id=question_id, quiz_id=quiz_id).first()
 
-    question = ShortAnswerQuestion.query.filter_by(id=question_id, quiz_id=quiz_id).first()
     if not question:
         return jsonify({"error": "Question not found"}), 404
 
     data = request.json
-    question_text = data.get("question_text", question.question_text)
-    correct_answer = data.get("correct_answer", question.correct_answer)
+    question.question_text = data.get("question_text", question.question_text)
+    question.correct_answer = data.get("correct_answer", question.correct_answer)
 
-    if not question_text or not correct_answer:
-        return jsonify({"error": "Invalid question data"}), 400
-
-    question.question_text = question_text
-    question.correct_answer = correct_answer
-
-    db.session.commit()
-
-    return jsonify({"message": "Short-answer question updated successfully", "question": question.to_dict()}), 200
-
-#Edit multiple-choice Question
-#_________________________________________________________________________________________________
-@lecturer_bp.route("/quizzes/<int:quiz_id>/questions/multiple-choice/<int:question_id>/edit", methods=["PUT"])
-@login_required
-def edit_multiple_choice_question(quiz_id, question_id):
-    """Edit an existing multiple-choice question"""
-    quiz = Quiz.query.get(quiz_id)
-    if not quiz:
-        return jsonify({"error": "Quiz not found"}), 404
-
-    question = MultipleChoiceQuestion.query.filter_by(id=question_id, quiz_id=quiz_id).first()
-    if not question:
-        return jsonify({"error": "Question not found"}), 404
-
-    data = request.json
-    question_text = data.get("question_text", question.question_text)
-    options = data.get("options", question.options)
-    correct_answer = data.get("correct_answer", question.correct_answer)
-
-    if not question_text or not options or not correct_answer:
-        return jsonify({"error": "Invalid question data"}), 400
-
-    question.question_text = question_text
-    question.options = options
-    question.correct_answer = correct_answer
+    # Only update options if it's a multiple-choice question
+    if question.question_type == "multiple_choice":
+        options = data.get("options", question.options)
+        if not options or len(options) < 2:
+            return jsonify({"error": "Multiple-choice questions need at least two options"}), 400
+        question.options = options
 
     db.session.commit()
 
-    return jsonify({"message": "Multiple-choice question updated successfully", "question": question.to_dict()}), 200
-
+    return jsonify({"message": "Question updated", "question": question.to_dict()}), 200
 
 # DELETE a Short-Answer Question
 #_________________________________________________________________________________________________
-@lecturer_bp.route("/quizzes/questions/short-answer/<int:question_id>/delete", methods=["DELETE"])
+@lecturer_bp.route("/quizzes/questions/<int:question_id>/delete", methods=["DELETE"])
 @login_required
-def delete_short_answer_question(question_id):
-    question = ShortAnswerQuestion  .query.get(question_id)
+def delete_quiz_question(question_id):
+    question = QuizQuestion.query.get(question_id)
     if not question:
         return jsonify({"error": "Question not found"}), 404
 
     db.session.delete(question)
     db.session.commit()
-    
-    return jsonify({"message": "Short-answer question deleted"}), 200
 
-# DELETE a Multiple-Choice Question
-#_________________________________________________________________________________________________
-@lecturer_bp.route("/quizzes/questions/multiple-choice/<int:question_id>/delete", methods=["DELETE"])
-@login_required
-def delete_multiple_choice_question(question_id):
-    question = MultipleChoiceQuestion.query.get(question_id)
-    if not question:
-        return jsonify({"error": "Question not found"}), 404
+    return jsonify({"message": "Question deleted"}), 200
 
-    db.session.delete(question)
-    db.session.commit()
-    
-    return jsonify({"message": "Multiple-choice question deleted"}), 200
+
 
 
 #                                            **ASSIGNMENTS**
