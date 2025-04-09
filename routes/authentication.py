@@ -67,7 +67,6 @@ def login():
         secure=True,
         samesite="None",
         path="/",
-        partitioned=True,
         max_age=86400
     )
     
@@ -84,7 +83,6 @@ def logout():
         secure=False,  
         samesite="None",  
         path="/",
-        partitioned=True,
         max_age=0
     )
 
