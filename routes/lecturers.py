@@ -189,7 +189,6 @@ def delete_section(course_id, lesson_id, section_id):
     if not section:
         return jsonify({"error": "Section not found"}), 404
 
-    # Delete file from Dropbox if it exists
     if section.file_url:
         try:
             delete_file_from_dropbox(section.file_url)
@@ -255,10 +254,7 @@ def get_lesson_details(course_id, lesson_id):
 
     return jsonify(lesson_data), 200
 
-
-#                                     **Upload a New Section **
- #_________________________________________________________________________________________________
-
+#Upload a New Section
 @lecturer_bp.route("/courses/<int:course_id>/lessons/<int:lesson_id>/sections", methods=["POST"])
 @login_required
 def add_section(course_id, lesson_id):
@@ -408,8 +404,7 @@ def edit_section(course_id, lesson_id, section_id):
 
 
 
-#                                       **Serve Uploaded Files**
-# #_________________________________________________________________________________________________
+#Serve Uploaded Files
 @lecturer_bp.route("/download/course/<int:course_id>/lesson/<int:lesson_id>/<path:filename>")
 @login_required
 def download_file(course_id, lesson_id, filename):
@@ -426,7 +421,6 @@ def download_file(course_id, lesson_id, filename):
     return jsonify({"message": "File available for download", "file_url": file_url})
 
 #Fetch All Quizzes
-#_________________________________________________________________________________________________
 @lecturer_bp.route("/quizzes", methods=["GET"])
 @login_required
 def get_all_quizzes():
@@ -673,7 +667,6 @@ def edit_quiz_question(quiz_id, question_id):
     }), 200
 
 # DELETE a Short-Answer Question
-#_________________________________________________________________________________________________
 @lecturer_bp.route("/quizzes/questions/<int:question_id>/delete", methods=["DELETE"])
 @login_required
 def delete_quiz_question(question_id):
@@ -690,7 +683,6 @@ def delete_quiz_question(question_id):
 
 
 #                                            **ASSIGNMENTS**
-#_________________________________________________________________________________________________
 
 #Get all assignments created by a lecturer (across courses)
 @lecturer_bp.route("/assignments", methods=["GET"], endpoint="get_assignments")
