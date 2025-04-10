@@ -1,10 +1,8 @@
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, make_response
 from werkzeug.security import generate_password_hash, check_password_hash
 from models.users import User
 from models import db
-from flask import jsonify, make_response
 from utils.tokens import get_jwt_token, decode_jwt
-from flask_cors import CORS, cross_origin
 
 auth_bp = Blueprint('auth_bp', __name__)
 
@@ -23,28 +21,23 @@ def after_request(response):
     if origin in allowed_origins:
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type"
-        response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
 
     return response
 
-
-
+# Login
 @auth_bp.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
     username = data.get("username_or_email")
     password = data.get("password")
-    print(f"Received username: {username}, password: {password}")
-    data = request.get_json()
-    print(f"Received Data: {data}")
 
     user = User.query.filter_by(username=username).first()
 
     if not user or not user.check_password(password):
         return jsonify({"error": "Invalid credentials"}), 401
 
-    #Generate JWT token
     token = get_jwt_token({
         "user_id": user.id,
         "username_or_email": user.username,
@@ -61,36 +54,37 @@ def login():
             "email": user.email
         }
     }))
+
     response.set_cookie(
-        "access_token", token, 
-        httponly=True, 
+        "access_token", token,
+        httponly=True,
         secure=True,
         samesite="None",
-        path="/",
         domain=".herokuapp.com",
+        path="/",
         max_age=86400
     )
-    print("Response headers before return:", response.headers)
+
     return response
 
-
+# Logout
 @auth_bp.route('/logout', methods=['POST'])
 def logout():
     response = make_response(jsonify({"message": "Logout successful"}))
-    
+
     response.set_cookie(
-        "access_token", "", 
-        httponly=True, 
-        secure=False,  
-        samesite="None",  
-        path="/",
+        "access_token", "",
+        httponly=True,
+        secure=True,
+        samesite="None",
         domain=".herokuapp.com",
+        path="/",
         max_age=0
     )
 
     return response
 
-#register Route
+# Register
 @auth_bp.route('/register', methods=['POST'])
 def register():
     data = request.get_json()
@@ -104,7 +98,10 @@ def register():
     if not username or not email or not password or not full_name:
         return jsonify({"error": "All fields are required"}), 400
 
-    existing_user = User.query.filter((User.username == username) | (User.email == email)).first()
+    existing_user = User.query.filter(
+        (User.username == username) | (User.email == email)
+    ).first()
+
     if existing_user:
         return jsonify({"error": "User already exists"}), 409
 
@@ -121,6 +118,7 @@ def register():
 
     return jsonify({"message": "User registered successfully!"}), 201
 
+# Auth Check
 @auth_bp.route('/check-auth', methods=['GET'])
 def check_auth():
     token = request.cookies.get("access_token")
@@ -132,9 +130,7 @@ def check_auth():
     try:
         decoded_token = decode_jwt(token)
         if not decoded_token:
-            print("Token decoded, but invalid or expired.")
             return jsonify({"error": "Invalid or expired token"}), 401
-        print("Decoded JWT:", decoded_token)
     except Exception as e:
         print(f"Error decoding JWT: {e}")
         return jsonify({"error": "Invalid token"}), 401
@@ -148,4 +144,3 @@ def check_auth():
             "institution_id": decoded_token.get("institution_id")
         }
     }), 200
-
