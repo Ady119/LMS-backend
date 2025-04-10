@@ -60,7 +60,6 @@ def login():
         httponly=True,
         secure=True,
         samesite="None",
-        domain=".herokuapp.com",
         path="/",
         max_age=86400
     )
@@ -77,7 +76,6 @@ def logout():
         httponly=True,
         secure=True,
         samesite="None",
-        domain=".herokuapp.com",
         path="/",
         max_age=0
     )
