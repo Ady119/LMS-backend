@@ -67,6 +67,7 @@ def login():
         secure=True,
         samesite="None",
         path="/",
+        domain=".herokuapp.com",
         max_age=86400
     )
     print("Response headers before return:", response.headers)
@@ -83,6 +84,7 @@ def logout():
         secure=False,  
         samesite="None",  
         path="/",
+        domain=".herokuapp.com",
         max_age=0
     )
 
