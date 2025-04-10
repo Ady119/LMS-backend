@@ -69,7 +69,7 @@ def login():
         path="/",
         max_age=86400
     )
-    
+    print("Response headers before return:", response.headers)
     return response
 
 
