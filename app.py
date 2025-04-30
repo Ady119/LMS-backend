@@ -19,7 +19,6 @@ from routes.lecturers import lecturer_bp
 from routes.students import student_bp
 from routes.chat import chat_bp
 
-# create app
 app = Flask(__name__)
 
 @app.route('/')
@@ -34,7 +33,7 @@ def loaderio_verification():
 env = os.environ.get("FLASK_ENV", "production")
 app.config.from_object(config_dict[env])
 
-# CORS and sessions
+# CORS + sessions
 CORS(app, resources={
     r"/*": {
         "origins": [
@@ -53,10 +52,6 @@ mail = Mail(app)
 migrate = Migrate(app, db)
 
 # JWT setup
-app.config["JWT_TOKEN_LOCATION"]     = ["cookies"]
-app.config["JWT_ACCESS_COOKIE_NAME"] = "access_token_cookie"
-app.config["JWT_COOKIE_SECURE"]      = True
-app.config["JWT_SECRET_KEY"]         = os.environ["JWT_SECRET_KEY"]
 jwt = JWTManager(app)
 
 # Socket.IO setup
@@ -75,7 +70,6 @@ app.register_blueprint(lecturer_bp,  url_prefix='/api/lecturer')
 app.register_blueprint(student_bp,   url_prefix='/api/student')
 app.register_blueprint(chat_bp,      url_prefix='/api/chat')
 
-# run
 if __name__ == '__main__':
     socketio.run(
         app,
