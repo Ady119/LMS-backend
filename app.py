@@ -14,10 +14,10 @@ from flask_jwt_extended import JWTManager
 from config import config_dict
 from models import db
 from routes.authentication import auth_bp
-from routes.super_admin import admin_bp
-from routes.lecturers import lecturer_bp
-from routes.students import student_bp
-from routes.chat import chat_bp
+from routes.super_admin    import admin_bp
+from routes.lecturers      import lecturer_bp
+from routes.students       import student_bp
+from routes.chat           import chat_bp
 
 app = Flask(__name__)
 
@@ -27,23 +27,32 @@ def home():
 
 @app.route('/loaderio-66e9ec91ed7e79e270da2de58f050f4a.txt')
 def loaderio_verification():
-    return send_file(os.path.join(app.root_path, 'loaderio-66e9ec91ed7e79e270da2de58f050f4a.txt'))
+    return send_file(os.path.join(app.root_path,
+                                  'loaderio-66e9ec91ed7e79e270da2de58f050f4a.txt'))
 
 # load configuration
 env = os.environ.get("FLASK_ENV", "production")
 app.config.from_object(config_dict[env])
 
+# ─── JWT cookie settings ───────────────────────────────────────────────
+# (must match the cookie your login route sets: response.set_cookie("access_token", ...))
+app.config["JWT_TOKEN_LOCATION"]     = ["cookies"]
+app.config["JWT_ACCESS_COOKIE_NAME"] = "access_token"
+app.config["JWT_COOKIE_SECURE"]      = True    # only over HTTPS
+app.config["JWT_COOKIE_SAMESITE"]    = "None"  # allow on cross-site requests
+# SECRET_KEY is already loaded via config_dict; JWTManager will use that
+jwt = JWTManager(app)
+# ─────────────────────────────────────────────────────────────────────────
+
 # CORS + sessions
-CORS(app, resources={
-    r"/*": {
-        "origins": [
-            "https://lms-frontend-henna-sigma.vercel.app",
-            "https://lms-frontend-5v355z5s0-adrians-projects-6add6cfa.vercel.app",
-            "https://lms-frontend-git-feature-offli-aed0ff-adrians-projects-6add6cfa.vercel.app",
-        ],
-        "supports_credentials": True
-    }
-})
+CORS(app, resources={ r"/*": {
+    "origins": [
+        "https://lms-frontend-henna-sigma.vercel.app",
+        "https://lms-frontend-5v355z5s0-adrians-projects-6add6cfa.vercel.app",
+        "https://lms-frontend-git-feature-offli-aed0ff-adrians-projects-6add6cfa.vercel.app",
+    ],
+    "supports_credentials": True
+}})
 Session(app)
 
 # initialize extensions
@@ -51,15 +60,12 @@ db.init_app(app)
 mail = Mail(app)
 migrate = Migrate(app, db)
 
-# JWT setup
-jwt = JWTManager(app)
-
-# Socket.IO setup
+# Socket.IO setup — use the same cookie name for auth
 socketio = SocketIO(
     app,
     async_mode="eventlet",
     cors_allowed_origins="*",
-    cookie="access_token_cookie",
+    cookie="access_token",
     manage_session=False
 )
 
