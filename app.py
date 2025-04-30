@@ -20,6 +20,11 @@ app = Flask(__name__)
 @app.route('/')
 def home():
     return "Welcome to the LMS App!"
+from flask import send_file
+
+@app.route('/loaderio-66e9ec91ed7e79e270da2de58f050f4a.txt')
+def loaderio_verification():
+    return send_file(os.path.join(app.root_path, 'loaderio-66e9ec91ed7e79e270da2de58f050f4a.txt'))
 
 env = os.environ.get("FLASK_ENV", "production")
 app.config.from_object(config_dict[env])
