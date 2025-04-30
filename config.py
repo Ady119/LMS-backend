@@ -6,19 +6,17 @@ from sqlalchemy.pool import QueuePool
 from urllib.parse import urlparse
 import pymysql
 
-# Ensure PyMySQL is used as MySQLdb
 pymysql.install_as_MySQLdb()
 
 class Config:
     SECRET_KEY = os.getenv('SECRET_KEY', 'change_this_secret_key')
 
-    # ── Flask-JWT-Extended cookie settings ─────────────────────────────
-    JWT_TOKEN_LOCATION     = ["cookies"]
-    JWT_ACCESS_COOKIE_NAME = "access_token"   # ← must match your login route
-    JWT_COOKIE_SECURE      = True             # only send over HTTPS
-    JWT_COOKIE_SAMESITE    = "None"           # allow cookie on cross-site requests
-    JWT_SECRET_KEY         = os.getenv("JWT_SECRET_KEY", SECRET_KEY)
-    # ─────────────────────────────────────────────────────────────────────
+    JWT_TOKEN_LOCATION        = ["cookies"]
+    JWT_ACCESS_COOKIE_NAME    = "access_token"
+    JWT_COOKIE_SECURE         = True
+    JWT_COOKIE_SAMESITE       = "None"
+    JWT_COOKIE_CSRF_PROTECT   = False
+    JWT_SECRET_KEY            = os.getenv("JWT_SECRET_KEY", SECRET_KEY)
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS      = {
@@ -33,8 +31,8 @@ class Config:
     SESSION_TYPE            = 'filesystem'
     SESSION_PERMANENT       = True
     SESSION_USE_SIGNER      = True
-    SESSION_COOKIE_SECURE   = True     # secure for prod
-    SESSION_COOKIE_SAMESITE = "None"   # allow cross-site
+    SESSION_COOKIE_SECURE   = True
+    SESSION_COOKIE_SAMESITE = "None"
     SESSION_COOKIE_PATH     = "/"
     SESSION_COOKIE_HTTPONLY = True
     PERMANENT_SESSION_LIFETIME = timedelta(days=1)
@@ -48,7 +46,6 @@ class DevConfig(Config):
         'mysql+pymysql://root:@localhost/lms_db2'
     )
 
-    # In local dev (HTTP), relax cookie flags
     JWT_COOKIE_SECURE      = False
     JWT_COOKIE_SAMESITE    = "Lax"
     SESSION_COOKIE_SECURE   = False
@@ -71,7 +68,6 @@ class ProdConfig(Config):
     else:
         SQLALCHEMY_DATABASE_URI = os.getenv('JAWSDB_URL', 'sqlite:///:memory:')
 
-    # Enforce secure, cross-site cookies in production
     JWT_COOKIE_SECURE       = True
     JWT_COOKIE_SAMESITE     = "None"
     SESSION_COOKIE_SECURE   = True
