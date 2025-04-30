@@ -17,7 +17,7 @@ class Config:
     }
     
     DROPBOX_ACCESS_TOKEN = os.getenv("DROPBOX_ACCESS_TOKEN")
-    ALLOWED_EXTENSIONS = {"pdf", "jpg", "png", "mp4", "zip", "txt", "docx"}  
+    ALLOWED_EXTENSIONS = {"pdf", "png", "mp4", "txt", "docx"}  
     SESSION_TYPE = 'filesystem'  
     SESSION_PERMANENT = True
     SESSION_USE_SIGNER = True

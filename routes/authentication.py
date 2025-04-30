@@ -47,16 +47,14 @@ def login():
     })
 
     response = make_response(jsonify({
-    "message": "Login successful",
-    "token": token,
-    "user": {
-        "id": user.id,
-        "role": user.role,
-        "username": user.username,
-        "email": user.email
-    }
-}))
-
+        "message": "Login successful",
+        "user": {
+            "id": user.id,
+            "role": user.role,
+            "username": user.username,
+            "email": user.email
+        }
+    }))
     response.set_cookie(
         "access_token", token, 
         httponly=True, 
