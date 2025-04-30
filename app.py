@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-from flask import Flask, send_file
+from flask import Flask, send_file, request
 from flask_mail import Mail
 from flask_cors import CORS
 from flask_migrate import Migrate
@@ -25,24 +25,15 @@ app = Flask(__name__)
 def home():
     return "Welcome to the LMS App!"
 
-@app.route('/loaderio-66e9ec91ed7e79e270da2de58f050f4a.txt')
-def loaderio_verification():
-    return send_file(os.path.join(app.root_path,
-                                  'loaderio-66e9ec91ed7e79e270da2de58f050f4a.txt'))
-
-# load configuration
 env = os.environ.get("FLASK_ENV", "production")
 app.config.from_object(config_dict[env])
 
-# ─── JWT cookie settings ───────────────────────────────────────────────
 app.config["JWT_TOKEN_LOCATION"]     = ["cookies"]
 app.config["JWT_ACCESS_COOKIE_NAME"] = "access_token"
 app.config["JWT_COOKIE_SECURE"]      = True
 app.config["JWT_COOKIE_SAMESITE"]    = "None"
 jwt = JWTManager(app)
-# ─────────────────────────────────────────────────────────────────────────
 
-# CORS + sessions
 CORS(app, resources={ r"/*": {
     "origins": [
         "https://lms-frontend-henna-sigma.vercel.app",
@@ -53,25 +44,34 @@ CORS(app, resources={ r"/*": {
 }})
 Session(app)
 
-# initialize extensions
 db.init_app(app)
 mail = Mail(app)
 migrate = Migrate(app, db)
 
-# Socket.IO setup — drop the cookie arg here
 socketio = SocketIO(
     app,
     async_mode="eventlet",
-    cors_allowed_origins="*",
+    cors_allowed_origins=[
+        "https://lms-frontend-henna-sigma.vercel.app",
+        "https://lms-frontend-5v355z5s0-adrians-projects-6add6cfa.vercel.app",
+        "https://lms-frontend-git-feature-offli-aed0ff-adrians-projects-6add6cfa.vercel.app",
+    ],
     manage_session=False
 )
+@socketio.on("connect")
+def on_connect():
+    print(f"Client connected: {request.sid}")
+
+@socketio.on("disconnect")
+def on_disconnect():
+    print(f"Client disconnected: {request.sid}")
 
 # register blueprints
-app.register_blueprint(auth_bp,      url_prefix='/api/auth')
-app.register_blueprint(admin_bp,     url_prefix='/api/admin')
-app.register_blueprint(lecturer_bp,  url_prefix='/api/lecturer')
-app.register_blueprint(student_bp,   url_prefix='/api/student')
-app.register_blueprint(chat_bp,      url_prefix='/api/chat')
+app.register_blueprint(auth_bp, url_prefix='/api/auth')
+app.register_blueprint(admin_bp, url_prefix='/api/admin')
+app.register_blueprint(lecturer_bp, url_prefix='/api/lecturer')
+app.register_blueprint(student_bp, url_prefix='/api/student')
+app.register_blueprint(chat_bp, url_prefix='/api/chat')
 
 if __name__ == '__main__':
     socketio.run(
