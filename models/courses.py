@@ -16,6 +16,12 @@ class Course(db.Model):
     lessons = relationship("Lesson", back_populates="course", cascade="all, delete-orphan")
     degree = relationship("Degree", back_populates="courses")
     exams = relationship("Exam", back_populates="course", cascade="all, delete-orphan")
+    messages = db.relationship(
+        "Message",
+        backref="course",
+        cascade="all, delete-orphan",
+        order_by="Message.created_at"
+    )
 
     def __repr__(self):
         return f"<Course {self.title} (Institution ID {self.institution_id})>"
