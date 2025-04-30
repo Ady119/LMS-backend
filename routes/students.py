@@ -596,6 +596,10 @@ def get_all_assignments():
 
     return jsonify({"assignments": assignment_list}), 200
 
+def allowed_file(filename):
+    return '.' in filename and \
+        filename.rsplit('.', 1)[1].lower() in current_app.config["ALLOWED_EXTENSIONS"]
+
 #submit assignment
 @student_bp.route('/assignments/submit', methods=['POST'])
 @login_required
@@ -606,10 +610,15 @@ def submit_assignment():
         return jsonify({"error": "No file provided"}), 400
 
     file = request.files['file']
+    filename = secure_filename(file.filename)
+
+    if not allowed_file(filename):
+        return jsonify({"error": "File type not allowed"}), 400
+
     assignment_id = request.form.get('assignment_id')
 
-    if not file:
-        return jsonify({"error": "Invalid file"}), 400
+    if not file or not assignment_id:
+        return jsonify({"error": "Invalid submission"}), 400
 
     assignment = Assignment.query.get(assignment_id)
     if not assignment:
@@ -622,24 +631,19 @@ def submit_assignment():
     course_id = lesson_section.lesson.course_id
     lesson_id = lesson_section.lesson_id
 
-    filename = secure_filename(file.filename)
     unique_filename = f"{user_id}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{filename}"
 
     dropbox_folder = f"assignments/course_{course_id}/lesson_{lesson_id}/assignment_{assignment.id}/student_{user_id}"
 
-    # Check if an old submission
     old_submission = AssignmentSubmission.query.filter_by(assignment_id=assignment.id, student_id=user_id).first()
     
     if old_submission and old_submission.file_url:
         try:
             delete_file_from_dropbox(old_submission.file_url)
-            print(f"Old file deleted from Dropbox: {old_submission.file_url}")
-
         except Exception as e:
             print(f"Error deleting old file from Dropbox: {e}")
 
     try:
-        # Upload new file to Dropbox
         public_url, _ = upload_file(file, unique_filename, folder=dropbox_folder)
 
         if not public_url:
@@ -649,7 +653,6 @@ def submit_assignment():
             db.session.delete(old_submission)
             db.session.commit()
 
-        # Add the new submission
         submission = AssignmentSubmission(
             assignment_id=assignment.id,
             student_id=user_id,
@@ -660,13 +663,11 @@ def submit_assignment():
         db.session.add(submission)
         db.session.commit()
       
-        # Auto mark section complete 
         already_completed = SectionProgress.query.filter_by(student_id=user_id, section_id=lesson_section.id).first()
         if not already_completed and lesson_section.is_active:
             db.session.add(SectionProgress(student_id=user_id, section_id=lesson_section.id))
             db.session.commit()
         
-        # Evaluate badges based on the submission
         new_badges = evaluate_all_badges(user_id)
         
         return jsonify({
@@ -680,6 +681,7 @@ def submit_assignment():
         import traceback
         traceback.print_exc()
         return jsonify({"error": f"File upload failed: {str(e)}"}), 500
+
 
 
 
