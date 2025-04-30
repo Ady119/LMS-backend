@@ -35,12 +35,10 @@ env = os.environ.get("FLASK_ENV", "production")
 app.config.from_object(config_dict[env])
 
 # ─── JWT cookie settings ───────────────────────────────────────────────
-# (must match the cookie your login route sets: response.set_cookie("access_token", ...))
 app.config["JWT_TOKEN_LOCATION"]     = ["cookies"]
 app.config["JWT_ACCESS_COOKIE_NAME"] = "access_token"
-app.config["JWT_COOKIE_SECURE"]      = True    # only over HTTPS
-app.config["JWT_COOKIE_SAMESITE"]    = "None"  # allow on cross-site requests
-# SECRET_KEY is already loaded via config_dict; JWTManager will use that
+app.config["JWT_COOKIE_SECURE"]      = True
+app.config["JWT_COOKIE_SAMESITE"]    = "None"
 jwt = JWTManager(app)
 # ─────────────────────────────────────────────────────────────────────────
 
@@ -60,12 +58,11 @@ db.init_app(app)
 mail = Mail(app)
 migrate = Migrate(app, db)
 
-# Socket.IO setup — use the same cookie name for auth
+# Socket.IO setup — drop the cookie arg here
 socketio = SocketIO(
     app,
     async_mode="eventlet",
     cors_allowed_origins="*",
-    cookie="access_token",
     manage_session=False
 )
 
