@@ -31,3 +31,4 @@ def decode_jwt(token):
     except jwt.InvalidTokenError:
         print("Invalid Token Provided")
         return None
+    
