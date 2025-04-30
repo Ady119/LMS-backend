@@ -1,40 +1,45 @@
+# app.py
+
 import os
-from dotenv import load_dotenv
-load_dotenv()
+from dotenv              import load_dotenv
+from flask               import Flask, send_file
+from flask_mail          import Mail
+from flask_cors          import CORS
+from flask_migrate       import Migrate
+from flask_session       import Session
+from flask_socketio      import SocketIO
+from flask_jwt_extended  import JWTManager
 
-from flask import Flask, send_file, request
-from flask_mail import Mail
-from flask_cors import CORS
-from flask_migrate import Migrate
-from flask_session import Session
-
-from flask_socketio import SocketIO
-from flask_jwt_extended import JWTManager
-
-from config import config_dict
-from models import db
+from config              import config_dict
+from models              import db
 from routes.authentication import auth_bp
 from routes.super_admin    import admin_bp
 from routes.lecturers      import lecturer_bp
 from routes.students       import student_bp
 from routes.chat           import chat_bp
+from socket_handlers      import init_chat_socket_handlers
 
+load_dotenv()
 app = Flask(__name__)
 
-@app.route('/')
+@app.route("/")
 def home():
     return "Welcome to the LMS App!"
+
+@app.route("/loaderio-66e9ec91ed7e79e270da2de58f050f4a.txt")
+def loaderio_verification():
+    return send_file(
+        os.path.join(app.root_path,
+                     "loaderio-66e9ec91ed7e79e270da2de58f050f4a.txt")
+    )
 
 env = os.environ.get("FLASK_ENV", "production")
 app.config.from_object(config_dict[env])
 
-app.config["JWT_TOKEN_LOCATION"]     = ["cookies"]
-app.config["JWT_ACCESS_COOKIE_NAME"] = "access_token"
-app.config["JWT_COOKIE_SECURE"]      = True
-app.config["JWT_COOKIE_SAMESITE"]    = "None"
 jwt = JWTManager(app)
 
-CORS(app, resources={ r"/*": {
+# CORS + Sessions
+CORS(app, resources={r"/*": {
     "origins": [
         "https://lms-frontend-henna-sigma.vercel.app",
         "https://lms-frontend-5v355z5s0-adrians-projects-6add6cfa.vercel.app",
@@ -45,38 +50,28 @@ CORS(app, resources={ r"/*": {
 Session(app)
 
 db.init_app(app)
-mail = Mail(app)
+mail    = Mail(app)
 migrate = Migrate(app, db)
+
+# Register REST Blueprints
+app.register_blueprint(auth_bp,     url_prefix="/api/auth")
+app.register_blueprint(admin_bp,    url_prefix="/api/admin")
+app.register_blueprint(lecturer_bp, url_prefix="/api/lecturer")
+app.register_blueprint(student_bp,  url_prefix="/api/student")
+app.register_blueprint(chat_bp,     url_prefix="/api/chat")
 
 socketio = SocketIO(
     app,
     async_mode="eventlet",
-    cors_allowed_origins=[
-        "https://lms-frontend-henna-sigma.vercel.app",
-        "https://lms-frontend-5v355z5s0-adrians-projects-6add6cfa.vercel.app",
-        "https://lms-frontend-git-feature-offli-aed0ff-adrians-projects-6add6cfa.vercel.app",
-    ],
+    cors_allowed_origins="*",
     manage_session=False
 )
-@socketio.on("connect")
-def on_connect():
-    print(f"Client connected: {request.sid}")
+init_chat_socket_handlers(socketio)
 
-@socketio.on("disconnect")
-def on_disconnect():
-    print(f"Client disconnected: {request.sid}")
-
-# register blueprints
-app.register_blueprint(auth_bp, url_prefix='/api/auth')
-app.register_blueprint(admin_bp, url_prefix='/api/admin')
-app.register_blueprint(lecturer_bp, url_prefix='/api/lecturer')
-app.register_blueprint(student_bp, url_prefix='/api/student')
-app.register_blueprint(chat_bp, url_prefix='/api/chat')
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     socketio.run(
         app,
         host="0.0.0.0",
         port=int(os.environ.get("PORT", 5000)),
-        debug=app.config['DEBUG']
+        debug=app.config.get("DEBUG", False)
     )
