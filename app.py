@@ -19,8 +19,7 @@ from routes.lecturers import lecturer_bp
 from routes.students import student_bp
 from routes.chat import chat_bp
 
-# ----
-
+# create app
 app = Flask(__name__)
 
 @app.route('/')
@@ -31,10 +30,11 @@ def home():
 def loaderio_verification():
     return send_file(os.path.join(app.root_path, 'loaderio-66e9ec91ed7e79e270da2de58f050f4a.txt'))
 
+# load configuration
 env = os.environ.get("FLASK_ENV", "production")
 app.config.from_object(config_dict[env])
-print("Loaded DB URI:", app.config.get("SQLALCHEMY_DATABASE_URI"))
 
+# CORS and sessions
 CORS(app, resources={
     r"/*": {
         "origins": [
@@ -47,10 +47,19 @@ CORS(app, resources={
 })
 Session(app)
 
+# initialize extensions
 db.init_app(app)
 mail = Mail(app)
 migrate = Migrate(app, db)
 
+# JWT setup
+app.config["JWT_TOKEN_LOCATION"]     = ["cookies"]
+app.config["JWT_ACCESS_COOKIE_NAME"] = "access_token_cookie"
+app.config["JWT_COOKIE_SECURE"]      = True
+app.config["JWT_SECRET_KEY"]         = os.environ["JWT_SECRET_KEY"]
+jwt = JWTManager(app)
+
+# Socket.IO setup
 socketio = SocketIO(
     app,
     async_mode="eventlet",
@@ -59,9 +68,6 @@ socketio = SocketIO(
     manage_session=False
 )
 
-print("Environment:", os.getenv("FLASK_ENV"))
-print("Database URI:", os.getenv("SQLALCHEMY_DATABASE_URI"))
-
 # register blueprints
 app.register_blueprint(auth_bp,      url_prefix='/api/auth')
 app.register_blueprint(admin_bp,     url_prefix='/api/admin')
@@ -69,6 +75,7 @@ app.register_blueprint(lecturer_bp,  url_prefix='/api/lecturer')
 app.register_blueprint(student_bp,   url_prefix='/api/student')
 app.register_blueprint(chat_bp,      url_prefix='/api/chat')
 
+# run
 if __name__ == '__main__':
     socketio.run(
         app,
