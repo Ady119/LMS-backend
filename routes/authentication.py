@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify, session
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_jwt_extended import create_access_token, set_access_cookies
 from models.users import User
 from models import db
 from flask import jsonify, make_response
@@ -29,22 +30,19 @@ def login():
     data = request.get_json()
     username = data.get("username_or_email")
     password = data.get("password")
-    print(f"Received username: {username}, password: {password}")
-    data = request.get_json()
-    print(f"Received Data: {data}")
 
     user = User.query.filter_by(username=username).first()
-
     if not user or not user.check_password(password):
         return jsonify({"error": "Invalid credentials"}), 401
 
-    #Generate JWT token
-    token = get_jwt_token({
-        "user_id": user.id,
-        "username_or_email": user.username,
-        "role": user.role,
-        "institution_id": user.institution_id
-    })
+    token = create_access_token(
+        identity=user.id,
+        additional_claims={
+            "username": user.username,
+            "role": user.role,
+            "institution_id": user.institution_id
+        }
+    )
 
     response = make_response(jsonify({
         "message": "Login successful",
@@ -55,18 +53,8 @@ def login():
             "email": user.email
         }
     }))
-    response.set_cookie(
-        "access_token", token, 
-        httponly=True, 
-        secure=True,
-        samesite="None",
-        path="/",
-        partitioned=True,
-        max_age=86400
-    )
-    
+    set_access_cookies(response, token)
     return response
-
 
 @auth_bp.route('/logout', methods=['POST'])
 def logout():

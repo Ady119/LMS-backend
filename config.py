@@ -11,12 +11,12 @@ pymysql.install_as_MySQLdb()
 class Config:
     SECRET_KEY = os.getenv('SECRET_KEY', 'change_this_secret_key')
 
-    JWT_TOKEN_LOCATION        = ["cookies"]
-    JWT_ACCESS_COOKIE_NAME    = "access_token"
-    JWT_COOKIE_SECURE         = True
-    JWT_COOKIE_SAMESITE       = "None"
-    JWT_COOKIE_CSRF_PROTECT   = False
-    JWT_SECRET_KEY            = os.getenv("JWT_SECRET_KEY", SECRET_KEY)
+    JWT_TOKEN_LOCATION      = ["cookies"]
+    JWT_ACCESS_COOKIE_NAME  = "access_token"
+    JWT_COOKIE_SECURE       = True
+    JWT_COOKIE_SAMESITE     = "None"
+    JWT_COOKIE_CSRF_PROTECT = False
+    JWT_SECRET_KEY          = os.getenv("JWT_SECRET_KEY", SECRET_KEY)
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS      = {
@@ -26,15 +26,15 @@ class Config:
         "pool_timeout": 10,
     }
 
-    DROPBOX_ACCESS_TOKEN    = os.getenv("DROPBOX_ACCESS_TOKEN")
-    ALLOWED_EXTENSIONS      = {"pdf", "png", "mp4", "txt", "docx"}
-    SESSION_TYPE            = 'filesystem'
-    SESSION_PERMANENT       = True
-    SESSION_USE_SIGNER      = True
-    SESSION_COOKIE_SECURE   = True
-    SESSION_COOKIE_SAMESITE = "None"
-    SESSION_COOKIE_PATH     = "/"
-    SESSION_COOKIE_HTTPONLY = True
+    DROPBOX_ACCESS_TOKEN      = os.getenv("DROPBOX_ACCESS_TOKEN")
+    ALLOWED_EXTENSIONS        = {"pdf", "png", "mp4", "txt", "docx"}
+    SESSION_TYPE              = 'filesystem'
+    SESSION_PERMANENT         = True
+    SESSION_USE_SIGNER        = True
+    SESSION_COOKIE_SECURE     = True
+    SESSION_COOKIE_SAMESITE   = "None"
+    SESSION_COOKIE_PATH       = "/"
+    SESSION_COOKIE_HTTPONLY   = True
     PERMANENT_SESSION_LIFETIME = timedelta(days=1)
 
 
@@ -46,8 +46,8 @@ class DevConfig(Config):
         'mysql+pymysql://root:@localhost/lms_db2'
     )
 
-    JWT_COOKIE_SECURE      = False
-    JWT_COOKIE_SAMESITE    = "Lax"
+    JWT_COOKIE_SECURE       = False
+    JWT_COOKIE_SAMESITE     = "Lax"
     SESSION_COOKIE_SECURE   = False
     SESSION_COOKIE_SAMESITE = "Lax"
 
