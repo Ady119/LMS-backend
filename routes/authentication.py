@@ -125,22 +125,21 @@ def register():
 @auth_bp.route('/check-auth', methods=['GET'])
 def check_auth():
     try:
-        # This will raise if no valid JWT cookie is present
+        # Will raise if the cookie is missing, expired, or invalid
         verify_jwt_in_request(locations=["cookies"])
     except Exception as err:
-        # You can customize these messages if you like
         return jsonify({"error": str(err)}), 401
 
     user_id = get_jwt_identity()
-    claims  = get_jwt()  # contains your additional_claims
+    claims  = get_jwt()
 
     return jsonify({
         "message": "Authenticated",
         "user": {
-            "id":             user_id,
-            "role":           claims.get("role"),
-            "username_or_email": claims.get("username_or_email"),
-            "institution_id": claims.get("institution_id")
+            "id":               user_id,
+            "role":             claims.get("role"),
+            "username_or_email":claims.get("username_or_email"),
+            "institution_id":   claims.get("institution_id")
         }
     }), 200
 
