@@ -1,105 +1,111 @@
-from flask import Blueprint, request, jsonify, session
+# routes/authentication.py
+
+import os
+from flask import Blueprint, request, jsonify, make_response
+from flask_jwt_extended import JWTManager
+from flask_cors import cross_origin
 from werkzeug.security import generate_password_hash, check_password_hash
 from models.users import User
 from models import db
-from flask import jsonify, make_response
 from utils.tokens import get_jwt_token, decode_jwt
-from flask_cors import CORS, cross_origin
 
 auth_bp = Blueprint('auth_bp', __name__)
 
-# CORS for Blueprint
-@auth_bp.after_request
-def add_cors_headers(response):
-    origin = request.headers.get('Origin')
-    if origin in ["http://localhost:5173", 
-                  "http://127.0.0.1:5173", 
-                  "http://localhost:4173",
-                  "https://lms-frontend-5v355z5s0-adrians-projects-6add6cfa.vercel.app", 
-                  "lms-frontend-henna-sigma.vercel.app"]:
-        response.headers['Access-Control-Allow-Origin'] = origin
-        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-        response.headers['Access-Control-Allow-Credentials'] = 'true'
-    return response
+ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:4173",
+    "https://lms-frontend-5v355z5s0-adrians-projects-6add6cfa.vercel.app",
+    "https://lms-frontend-henna-sigma.vercel.app",
+]
 
-
-@auth_bp.route('/login', methods=['POST'])
+@auth_bp.route('/login', methods=['OPTIONS', 'POST'])
+@cross_origin(
+    origins=ALLOWED_ORIGINS,
+    methods=['POST','OPTIONS'],
+    allow_headers=['Content-Type','Authorization'],
+    supports_credentials=True
+)
 def login():
-    data = request.get_json()
+    if request.method == 'OPTIONS':
+        return make_response('', 200)
+
+    data     = request.get_json() or {}
     username = data.get("username_or_email")
     password = data.get("password")
-    print(f"Received username: {username}, password: {password}")
-    data = request.get_json()
-    print(f"Received Data: {data}")
 
     user = User.query.filter_by(username=username).first()
-
-    if not user or not user.check_password(password):
+    if not user or not check_password_hash(user.password_hash, password):
         return jsonify({"error": "Invalid credentials"}), 401
 
-    #Generate JWT token
     token = get_jwt_token({
-        "user_id": user.id,
+        "user_id":           user.id,
         "username_or_email": user.username,
-        "role": user.role,
-        "institution_id": user.institution_id
+        "role":              user.role,
+        "institution_id":    user.institution_id
     })
 
-    response = make_response(jsonify({
+    resp = make_response(jsonify({
         "message": "Login successful",
         "user": {
-            "id": user.id,
-            "role": user.role,
+            "id":       user.id,
+            "role":     user.role,
             "username": user.username,
-            "email": user.email
+            "email":    user.email
         }
-    }))
-    response.set_cookie(
-        "access_token", token, 
-        httponly=True, 
-        secure=True,
+    }), 200)
+    resp.set_cookie(
+        "access_token", token,
+        httponly=True,
+        secure=not os.getenv("FLASK_ENV","").startswith("development"),
         samesite="None",
         path="/",
-        partitioned=True,
         max_age=86400
     )
-    
-    return response
+    return resp
 
-
-@auth_bp.route('/logout', methods=['POST'])
+@auth_bp.route('/logout', methods=['OPTIONS','POST'])
+@cross_origin(
+    origins=ALLOWED_ORIGINS,
+    methods=['POST','OPTIONS'],
+    supports_credentials=True
+)
 def logout():
-    response = make_response(jsonify({"message": "Logout successful"}))
-    
-    response.set_cookie(
-        "access_token", "", 
-        httponly=True, 
-        secure=False,  
-        samesite="None",  
+    if request.method == 'OPTIONS':
+        return make_response('', 200)
+    resp = make_response(jsonify({"message": "Logout successful"}), 200)
+    resp.set_cookie(
+        "access_token", "",
+        httponly=True,
+        secure=not os.getenv("FLASK_ENV","").startswith("development"),
+        samesite="None",
         path="/",
-        partitioned=True,
         max_age=0
     )
+    return resp
 
-    return response
-
-#register Route
-@auth_bp.route('/register', methods=['POST'])
+@auth_bp.route('/register', methods=['OPTIONS','POST'])
+@cross_origin(
+    origins=ALLOWED_ORIGINS,
+    methods=['POST','OPTIONS'],
+    allow_headers=['Content-Type'],
+    supports_credentials=True
+)
 def register():
-    data = request.get_json()
+    if request.method == 'OPTIONS':
+        return make_response('', 200)
 
-    username = data.get('username')
-    email = data.get('email')
-    password = data.get('password')
+    data      = request.get_json() or {}
+    username  = data.get('username')
+    email     = data.get('email')
+    password  = data.get('password')
     full_name = data.get('full_name')
-    role = data.get('role', 'student')
+    role      = data.get('role', 'student')
 
-    if not username or not email or not password or not full_name:
+    if not (username and email and password and full_name):
         return jsonify({"error": "All fields are required"}), 400
 
-    existing_user = User.query.filter((User.username == username) | (User.email == email)).first()
-    if existing_user:
+    if User.query.filter((User.username==username)|(User.email==email)).first():
         return jsonify({"error": "User already exists"}), 409
 
     new_user = User(
@@ -108,38 +114,37 @@ def register():
         full_name=full_name,
         role=role
     )
-    new_user.set_password(password)
-
+    new_user.password_hash = generate_password_hash(password)
     db.session.add(new_user)
     db.session.commit()
 
     return jsonify({"message": "User registered successfully!"}), 201
 
-@auth_bp.route('/check-auth', methods=['GET'])
+@auth_bp.route('/check-auth', methods=['OPTIONS','GET'])
+@cross_origin(
+    origins=ALLOWED_ORIGINS,
+    methods=['GET','OPTIONS'],
+    supports_credentials=True
+)
 def check_auth():
-    token = request.cookies.get("access_token")
+    if request.method == 'OPTIONS':
+        return make_response('', 200)
 
+    token = request.cookies.get("access_token")
     if not token:
-        print("No token found in cookies")
         return jsonify({"error": "Not authenticated"}), 401
 
     try:
-        decoded_token = decode_jwt(token)
-        if not decoded_token:
-            print("Token decoded, but invalid or expired.")
-            return jsonify({"error": "Invalid or expired token"}), 401
-        print("Decoded JWT:", decoded_token)
-    except Exception as e:
-        print(f"Error decoding JWT: {e}")
-        return jsonify({"error": "Invalid token"}), 401
+        decoded = decode_jwt(token)
+    except Exception:
+        return jsonify({"error": "Invalid or expired token"}), 401
 
     return jsonify({
         "message": "Authenticated",
         "user": {
-            "id": decoded_token.get("user_id"),
-            "role": decoded_token.get("role"),
-            "username_or_email": decoded_token.get("username_or_email"),
-            "institution_id": decoded_token.get("institution_id")
+            "id":               decoded.get("user_id"),
+            "role":             decoded.get("role"),
+            "username_or_email":decoded.get("username_or_email"),
+            "institution_id":   decoded.get("institution_id")
         }
     }), 200
-
