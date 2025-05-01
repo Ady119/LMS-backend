@@ -3,7 +3,7 @@ from datetime import datetime
 from utils.dropbox_service import get_temporary_download_link, delete_file_from_dropbox, upload_file
 from werkzeug.utils import secure_filename, safe_join
 from flask import Blueprint, jsonify, g, request, current_app, send_from_directory, abort, send_file, redirect
-from sqlalchemy.orm import aliased, joinedload
+from sqlalchemy.orm import aliased, joinedload, select
 from utils.badge_service import evaluate_all_badges
 from urllib.parse import unquote
 from utils.tokens import get_jwt_token, decode_jwt
@@ -54,23 +54,30 @@ def add_cors_headers(response):
 @student_bp.route("/courses", methods=["GET"])
 @login_required
 def get_enrolled_courses():
+    # you're already setting g.user = {'user_id': ...} in your login decorator
     student_id = g.user.get("user_id")
-
     if not student_id:
         return jsonify({"error": "Invalid token"}), 401
 
-    enrolled_degrees = db.session.query(Enrolment.degree_id).filter(
-        Enrolment.student_id == student_id
-    ).subquery()
+    # build a SQLAlchemy select() for the enrolled degree IDs
+    degree_subq = (
+        select(Enrolment.degree_id)
+        .filter_by(student_id=student_id)
+    )
 
-    #Get courses linked to those degrees
-    courses = db.session.query(
-        Course.id, Course.title, Course.description
-    ).filter(Course.degree_id.in_(enrolled_degrees)).all()
+    # fetch all courses whose degree_id appears in that select()
+    courses = (
+        db.session.query(Course.id, Course.title, Course.description)
+              .filter(Course.degree_id.in_(degree_subq))
+              .all()
+    )
 
-    courses_list = [{"id": c.id, "title": c.title, "description": c.description} for c in courses]
+    courses_list = [
+        {"id": c.id, "title": c.title, "description": c.description}
+        for c in courses
+    ]
 
-    return jsonify({"courses": courses_list})
+    return jsonify({"courses": courses_list}), 200
 
 #Fetch student's courses details
 @student_bp.route("/courses/<int:course_id>", methods=["GET"])
