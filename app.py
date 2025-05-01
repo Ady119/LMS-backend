@@ -1,4 +1,4 @@
-import os
+import os                           # ← add this
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -8,15 +8,16 @@ from flask_cors import CORS
 from flask_migrate import Migrate
 from flask_session import Session
 from flask_socketio import SocketIO
+from flask_jwt_extended import JWTManager  # ← import JWTManager
 
 from config import config_dict
 from models import db
 from routes.authentication import auth_bp
-from routes.super_admin import admin_bp
-from routes.lecturers import lecturer_bp
-from routes.students import student_bp
-from routes.chat import chat_bp
-from socket_handlers import init_chat_socket_handlers
+from routes.super_admin    import admin_bp
+from routes.lecturers      import lecturer_bp
+from routes.students       import student_bp
+from routes.chat           import chat_bp
+from socket_handlers      import init_chat_socket_handlers
 
 app = Flask(__name__)
 
@@ -24,8 +25,14 @@ app = Flask(__name__)
 def home():
     return "Welcome to the LMS App!"
 
+# Load your Config subclass (DevConfig / ProdConfig, etc)
 env = os.environ.get("FLASK_ENV", "production")
 app.config.from_object(config_dict[env])
+
+# Ensure the JWT cookie settings exist before initializing
+app.config.setdefault("JWT_TOKEN_LOCATION", ["cookies"])
+app.config.setdefault("JWT_ACCESS_COOKIE_NAME", "access_token")
+
 print("Loaded DB URI:", app.config.get("SQLALCHEMY_DATABASE_URI"))
 
 CORS(app, resources={
@@ -41,19 +48,23 @@ CORS(app, resources={
 Session(app)
 
 db.init_app(app)
-mail = Mail(app)
+mail    = Mail(app)
 migrate = Migrate(app, db)
+
+# Now initialize JWT
+jwt = JWTManager(app)  # ← this must come after you set the config defaults
 
 print("Environment:", os.getenv("FLASK_ENV"))
 print("Database URI:", os.getenv("SQLALCHEMY_DATABASE_URI"))
 
-app.register_blueprint(auth_bp,      url_prefix='/api/auth')
-app.register_blueprint(admin_bp,     url_prefix='/api/admin')
-app.register_blueprint(lecturer_bp,  url_prefix='/api/lecturer')
-app.register_blueprint(student_bp,   url_prefix='/api/student')
-app.register_blueprint(chat_bp,      url_prefix='/api/chat')
+# Register your blueprints
+app.register_blueprint(auth_bp,     url_prefix='/api/auth')
+app.register_blueprint(admin_bp,    url_prefix='/api/admin')
+app.register_blueprint(lecturer_bp, url_prefix='/api/lecturer')
+app.register_blueprint(student_bp,  url_prefix='/api/student')
+app.register_blueprint(chat_bp,     url_prefix='/api/chat')
 
-# initialize Socket.IO
+# Initialize Socket.IO
 socketio = SocketIO(
     app,
     async_mode="eventlet",
