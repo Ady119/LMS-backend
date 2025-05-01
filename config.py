@@ -9,7 +9,13 @@ import pymysql
 pymysql.install_as_MySQLdb()
 
 class Config:
-    SECRET_KEY = os.getenv('SECRET_KEY', 'change_this_secret_key')
+    SECRET_KEY                 = os.getenv('SECRET_KEY', 'change_this_secret_key')
+    JWT_SECRET_KEY             = os.getenv('JWT_SECRET_KEY', SECRET_KEY)
+    JWT_TOKEN_LOCATION         = ['cookies']
+    JWT_ACCESS_COOKIE_NAME     = 'access_token'
+    JWT_COOKIE_SECURE          = True
+    JWT_COOKIE_SAMESITE        = 'None'
+    JWT_ACCESS_TOKEN_EXPIRES   = timedelta(days=1)
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS      = {
@@ -38,6 +44,8 @@ class DevConfig(Config):
         'SQLALCHEMY_DATABASE_URI',
         'mysql+pymysql://root:@localhost/lms_db2'
     )
+    JWT_COOKIE_SECURE       = False
+    JWT_COOKIE_SAMESITE     = 'Lax'
 
 
 class TestConfig(Config):
@@ -47,6 +55,7 @@ class TestConfig(Config):
 
 class ProdConfig(Config):
     DEBUG = False
+
     raw_db_url = os.getenv('DATABASE_URL')
     if raw_db_url and raw_db_url.startswith("mysql://"):
         raw_db_url = raw_db_url.replace("mysql://", "mysql+pymysql://", 1)
@@ -56,10 +65,10 @@ class ProdConfig(Config):
     else:
         SQLALCHEMY_DATABASE_URI = os.getenv('JAWSDB_URL', 'sqlite:///:memory:')
 
-    JWT_COOKIE_SECURE       = True
-    JWT_COOKIE_SAMESITE     = "None"
     SESSION_COOKIE_SECURE   = True
     SESSION_COOKIE_SAMESITE = "None"
+    JWT_COOKIE_SECURE       = True
+    JWT_COOKIE_SAMESITE     = "None"
 
 
 config_dict = {
