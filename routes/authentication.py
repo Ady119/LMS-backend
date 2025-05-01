@@ -12,7 +12,6 @@ from flask_jwt_extended import (
     get_jwt
 )
 
-
 auth_bp = Blueprint('auth_bp', __name__)
 
 # CORS for Blueprint
@@ -122,7 +121,6 @@ def register():
 
     return jsonify({"message": "User registered successfully!"}), 201
 
-auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
 @auth_bp.route('/check-auth', methods=['GET'])
 def check_auth():
