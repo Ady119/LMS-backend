@@ -1,17 +1,37 @@
 # socket_handlers.py
 
-from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
-from flask_socketio      import join_room, leave_room, emit
+from flask_socketio import join_room, leave_room, emit
+from flask import request
+from flask_jwt_extended import decode_token
+from flask_jwt_extended.exceptions import JWTDecodeError
 from models import db, Message, Enrolment
 import datetime
 
 global_history = []
+_sid_user = {}
 
 def init_chat_socket_handlers(socketio):
+    @socketio.on("connect")
+    def _connect(auth):
+        token = auth.get("token")
+        if not token:
+            return False
+        try:
+            data = decode_token(token)
+        except JWTDecodeError:
+            return False
+        _sid_user[request.sid] = data["sub"]
+
+    @socketio.on("disconnect")
+    def _disconnect():
+        _sid_user.pop(request.sid, None)
+
     @socketio.on("join")
     def handle_join(data):
-        verify_jwt_in_request(locations=["cookies"])
-        user_id = get_jwt_identity()
+        user_id = _sid_user.get(request.sid)
+        if not user_id:
+            emit("error", {"message": "Unauthorized"})
+            return
 
         room = data.get("course_id") or "global"
         if room != "global":
@@ -20,7 +40,6 @@ def init_chat_socket_handlers(socketio):
                 return
 
         join_room(room)
-
         if room == "global":
             emit("history", global_history)
         else:
@@ -29,10 +48,12 @@ def init_chat_socket_handlers(socketio):
 
     @socketio.on("send_message")
     def handle_send_message(data):
-        verify_jwt_in_request(locations=["cookies"])
-        user_id = get_jwt_identity()
+        user_id = _sid_user.get(request.sid)
+        if not user_id:
+            emit("error", {"message": "Unauthorized"})
+            return
 
-        room   = data.get("course_id") or "global"
+        room = data.get("course_id") or "global"
         content = (data.get("content") or "").strip()
         if not content:
             emit("error", {"message": "content required"})
