@@ -1,19 +1,22 @@
 import os
 from dotenv import load_dotenv
 load_dotenv()
+
 from flask import Flask
 from flask_mail import Mail
 from flask_cors import CORS
 from flask_migrate import Migrate
 from flask_session import Session
+from flask_socketio import SocketIO
+
 from config import config_dict
 from models import db
 from routes.authentication import auth_bp
 from routes.super_admin import admin_bp
 from routes.lecturers import lecturer_bp
 from routes.students import student_bp
-
-load_dotenv()
+from routes.chat import chat_bp
+from socket_handlers import init_chat_socket_handlers
 
 app = Flask(__name__)
 
@@ -24,12 +27,13 @@ def home():
 env = os.environ.get("FLASK_ENV", "production")
 app.config.from_object(config_dict[env])
 print("Loaded DB URI:", app.config.get("SQLALCHEMY_DATABASE_URI"))
+
 CORS(app, resources={
     r"/*": {
         "origins": [
-            "https://lms-frontend-henna-sigma.vercel.app",                        # production
+            "https://lms-frontend-henna-sigma.vercel.app",
             "https://lms-frontend-5v355z5s0-adrians-projects-6add6cfa.vercel.app",
-            "https://lms-frontend-git-feature-offli-aed0ff-adrians-projects-6add6cfa.vercel.app", # preview
+            "https://lms-frontend-git-feature-offli-aed0ff-adrians-projects-6add6cfa.vercel.app",
         ],
         "supports_credentials": True
     }
@@ -43,10 +47,24 @@ migrate = Migrate(app, db)
 print("Environment:", os.getenv("FLASK_ENV"))
 print("Database URI:", os.getenv("SQLALCHEMY_DATABASE_URI"))
 
-app.register_blueprint(auth_bp, url_prefix='/api/auth')
-app.register_blueprint(admin_bp, url_prefix='/api/admin')
-app.register_blueprint(lecturer_bp, url_prefix='/api/lecturer')
-app.register_blueprint(student_bp, url_prefix='/api/student')
+app.register_blueprint(auth_bp,      url_prefix='/api/auth')
+app.register_blueprint(admin_bp,     url_prefix='/api/admin')
+app.register_blueprint(lecturer_bp,  url_prefix='/api/lecturer')
+app.register_blueprint(student_bp,   url_prefix='/api/student')
+app.register_blueprint(chat_bp,      url_prefix='/api/chat')
+
+# initialize Socket.IO
+socketio = SocketIO(
+    app,
+    async_mode="eventlet",
+    cors_allowed_origins=[
+        "https://lms-frontend-henna-sigma.vercel.app",
+        "https://lms-frontend-5v355z5s0-adrians-projects-6add6cfa.vercel.app",
+        "https://lms-frontend-git-feature-offli-aed0ff-adrians-projects-6add6cfa.vercel.app",
+    ],
+    manage_session=False
+)
+init_chat_socket_handlers(socketio)
 
 if __name__ == '__main__':
-    app.run(debug=app.config['DEBUG'])
+    socketio.run(app, debug=app.config['DEBUG'])
