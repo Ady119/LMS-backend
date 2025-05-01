@@ -1,8 +1,6 @@
-# socket_handlers.py
-
 from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
-from flask_socketio      import join_room, leave_room, emit
-from flask               import request
+from flask_socketio         import join_room, leave_room, emit
+from flask                  import request
 
 from models import db, Message, Enrolment
 
@@ -18,11 +16,9 @@ def init_chat_socket_handlers(socketio):
             return
 
         # enrollment check
-        if not (
-            db.session.query(Enrolment)
-              .filter_by(student_id=user_id, course_id=course_id)
-              .first()
-        ):
+        if not db.session.query(Enrolment).filter_by(
+                student_id=user_id, course_id=course_id
+            ).first():
             emit("error", {"message": "Forbidden"})
             return
 
@@ -50,11 +46,9 @@ def init_chat_socket_handlers(socketio):
             return
 
         # enrollment check
-        if not (
-            db.session.query(Enrolment)
-              .filter_by(student_id=user_id, course_id=course_id)
-              .first()
-        ):
+        if not db.session.query(Enrolment).filter_by(
+                student_id=user_id, course_id=course_id
+            ).first():
             emit("error", {"message": "Forbidden"})
             return
 
@@ -62,8 +56,8 @@ def init_chat_socket_handlers(socketio):
         msg = Message(course_id=course_id, sender_id=user_id, content=content)
         db.session.add(msg)
         db.session.commit()
-
         payload = msg.to_dict()
+
         room = f"course-{course_id}"
         emit("new_message", payload, room=room)
 

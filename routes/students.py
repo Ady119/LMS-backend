@@ -682,10 +682,6 @@ def submit_assignment():
         traceback.print_exc()
         return jsonify({"error": f"File upload failed: {str(e)}"}), 500
 
-
-
-
-
 #fetch assihnment details
 @student_bp.route("/assignments/<int:assignment_id>", methods=["GET"])
 @login_required
