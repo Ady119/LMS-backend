@@ -1,35 +1,32 @@
-from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
 from flask_socketio import join_room, leave_room, emit
 from flask import request
+from utils.tokens import decode_jwt
 from models import db, Message, ChatRoom, Enrolment
-
 
 def init_chat_socket_handlers(socketio):
     @socketio.on("join")
     def handle_join(data):
-        verify_jwt_in_request(locations=["cookies"])
-        user_id = get_jwt_identity()
+        token = request.cookies.get("access_token")
+        if not token:
+            return emit("error", {"message": "Not authenticated"})
+        try:
+            decoded = decode_jwt(token)
+        except Exception:
+            return emit("error", {"message": "Invalid or expired token"})
+        user_id = decoded.get("user_id")
+        if not user_id:
+            return emit("error", {"message": "Malformed token"})
 
         course_id = data.get("course_id")
         if course_id:
-            # Check enrollment
-            enrolled = db.session.query(Enrolment).filter_by(
-                student_id=user_id,
-                course_id=course_id
-            ).first()
+            enrolled = Enrolment.query.filter_by(student_id=user_id, course_id=course_id).first()
             if not enrolled:
                 return emit("error", {"message": "Forbidden"})
-            room_obj = db.session.query(ChatRoom).filter_by(
-                course_id=course_id,
-                is_global=False
-            ).first()
+            room_obj = ChatRoom.query.filter_by(course_id=course_id, is_global=False).first()
             if not room_obj:
                 return emit("error", {"message": "Room not found"})
         else:
-            # Global chat room
-            room_obj = db.session.query(ChatRoom).filter_by(
-                is_global=True
-            ).first()
+            room_obj = ChatRoom.query.filter_by(is_global=True).first()
             if not room_obj:
                 return emit("error", {"message": "Global room not found"})
 
@@ -46,54 +43,46 @@ def init_chat_socket_handlers(socketio):
 
     @socketio.on("send_message")
     def handle_send_message(data):
-        # Ensure user is authenticated
-        verify_jwt_in_request(locations=["cookies"])
-        user_id = get_jwt_identity()
+        token = request.cookies.get("access_token")
+        if not token:
+            return emit("error", {"message": "Not authenticated"})
+        try:
+            decoded = decode_jwt(token)
+        except Exception:
+            return emit("error", {"message": "Invalid or expired token"})
+        user_id = decoded.get("user_id")
+        if not user_id:
+            return emit("error", {"message": "Malformed token"})
 
         course_id = data.get("course_id")
         content = (data.get("content") or "").strip()
         if not content:
             return emit("error", {"message": "Content required"})
 
-        # Determine appropriate chat room
         if course_id:
-            enrolled = db.session.query(Enrolment).filter_by(
-                student_id=user_id,
-                course_id=course_id
-            ).first()
+            enrolled = Enrolment.query.filter_by(student_id=user_id, course_id=course_id).first()
             if not enrolled:
                 return emit("error", {"message": "Forbidden"})
-            room_obj = db.session.query(ChatRoom).filter_by(
-                course_id=course_id,
-                is_global=False
-            ).first()
+            room_obj = ChatRoom.query.filter_by(course_id=course_id, is_global=False).first()
         else:
-            room_obj = db.session.query(ChatRoom).filter_by(is_global=True).first()
+            room_obj = ChatRoom.query.filter_by(is_global=True).first()
 
         if not room_obj:
             return emit("error", {"message": "Room not found"})
 
-        msg = Message(
-            chat_room_id=room_obj.id,
-            sender_id=user_id,
-            content=content
-        )
+        msg = Message(chat_room_id=room_obj.id, sender_id=user_id, content=content)
         db.session.add(msg)
         db.session.commit()
-        payload = msg.to_dict()
 
         room_name = f"chatroom-{room_obj.id}"
-        emit("new_message", payload, room=room_name)
+        emit("new_message", msg.to_dict(), room=room_name)
 
     @socketio.on("leave")
     def handle_leave(data):
-        room_id = data.get("course_id")
-        if room_id:
-            room_obj = db.session.query(ChatRoom).filter_by(
-                course_id=room_id,
-                is_global=False
-            ).first()
+        course_id = data.get("course_id")
+        if course_id:
+            room_obj = ChatRoom.query.filter_by(course_id=course_id, is_global=False).first()
         else:
-            room_obj = db.session.query(ChatRoom).filter_by(is_global=True).first()
+            room_obj = ChatRoom.query.filter_by(is_global=True).first()
         if room_obj:
             leave_room(f"chatroom-{room_obj.id}")
