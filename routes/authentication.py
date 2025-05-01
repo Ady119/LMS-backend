@@ -27,7 +27,7 @@ def add_cors_headers(response):
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
-    data = request.get_json() or {}
+    data = request.get_json()
     username = data.get("username_or_email")
     password = data.get("password")
 
@@ -51,8 +51,7 @@ def login():
             "role": user.role,
             "username": user.username,
             "email": user.email
-        },
-        "access_token": token
+        }
     }))
     set_access_cookies(response, token)
     return response
