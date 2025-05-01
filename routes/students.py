@@ -3,7 +3,8 @@ from datetime import datetime
 from utils.dropbox_service import get_temporary_download_link, delete_file_from_dropbox, upload_file
 from werkzeug.utils import secure_filename, safe_join
 from flask import Blueprint, jsonify, g, request, current_app, send_from_directory, abort, send_file, redirect
-from sqlalchemy.orm import aliased, joinedload, select
+from sqlalchemy.orm import aliased, joinedload
+from sqlalchemy import select
 from utils.badge_service import evaluate_all_badges
 from urllib.parse import unquote
 from utils.tokens import get_jwt_token, decode_jwt
