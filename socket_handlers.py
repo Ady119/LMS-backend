@@ -1,26 +1,34 @@
 from flask_socketio import join_room, leave_room, emit
 from flask import request
 from utils.tokens import decode_jwt
-from models import db, Message, ChatRoom, Enrolment
+from models import db, Message, ChatRoom, Enrolment, Course
 
 def init_chat_socket_handlers(socketio):
     @socketio.on("join")
     def handle_join(data):
+        # auth…
         token = request.cookies.get("access_token")
         if not token:
             return emit("error", {"message": "Not authenticated"})
         try:
             decoded = decode_jwt(token)
-        except Exception:
+        except:
             return emit("error", {"message": "Invalid or expired token"})
         user_id = decoded.get("user_id")
-        if not user_id:
-            return emit("error", {"message": "Malformed token"})
 
         course_id = data.get("course_id")
         if course_id:
-            enrolled = Enrolment.query.filter_by(student_id=user_id, course_id=course_id).first()
-            if not enrolled:
+            # is there an enrolment whose degree matches this course?
+            allowed = (
+                db.session.query(Course)
+                .join(Enrolment, Course.degree_id == Enrolment.degree_id)
+                .filter(
+                    Enrolment.student_id == user_id,
+                    Course.id           == course_id
+                )
+                .first()
+            )
+            if not allowed:
                 return emit("error", {"message": "Forbidden"})
             room_obj = ChatRoom.query.filter_by(course_id=course_id, is_global=False).first()
             if not room_obj:
@@ -30,29 +38,21 @@ def init_chat_socket_handlers(socketio):
             if not room_obj:
                 return emit("error", {"message": "Global room not found"})
 
-        room_name = f"chatroom-{room_obj.id}"
-        join_room(room_name)
-
-        history = (
-            Message.query
-            .filter_by(chat_room_id=room_obj.id)
-            .order_by(Message.created_at)
-            .all()
-        )
+        join_room(f"chatroom-{room_obj.id}")
+        history = Message.query.filter_by(chat_room_id=room_obj.id).order_by(Message.created_at).all()
         emit("history", [m.to_dict() for m in history])
 
     @socketio.on("send_message")
     def handle_send_message(data):
+        # auth…
         token = request.cookies.get("access_token")
         if not token:
             return emit("error", {"message": "Not authenticated"})
         try:
             decoded = decode_jwt(token)
-        except Exception:
+        except:
             return emit("error", {"message": "Invalid or expired token"})
         user_id = decoded.get("user_id")
-        if not user_id:
-            return emit("error", {"message": "Malformed token"})
 
         course_id = data.get("course_id")
         content = (data.get("content") or "").strip()
@@ -60,8 +60,16 @@ def init_chat_socket_handlers(socketio):
             return emit("error", {"message": "Content required"})
 
         if course_id:
-            enrolled = Enrolment.query.filter_by(student_id=user_id, course_id=course_id).first()
-            if not enrolled:
+            allowed = (
+                db.session.query(Course)
+                .join(Enrolment, Course.degree_id == Enrolment.degree_id)
+                .filter(
+                    Enrolment.student_id == user_id,
+                    Course.id           == course_id
+                )
+                .first()
+            )
+            if not allowed:
                 return emit("error", {"message": "Forbidden"})
             room_obj = ChatRoom.query.filter_by(course_id=course_id, is_global=False).first()
         else:
@@ -74,8 +82,7 @@ def init_chat_socket_handlers(socketio):
         db.session.add(msg)
         db.session.commit()
 
-        room_name = f"chatroom-{room_obj.id}"
-        emit("new_message", msg.to_dict(), room=room_name)
+        emit("new_message", msg.to_dict(), room=f"chatroom-{room_obj.id}")
 
     @socketio.on("leave")
     def handle_leave(data):
