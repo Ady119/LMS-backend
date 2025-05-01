@@ -5,6 +5,13 @@ from models import db
 from flask import jsonify, make_response
 from utils.tokens import get_jwt_token, decode_jwt
 from flask_cors import CORS, cross_origin
+from flask import Blueprint, jsonify
+from flask_jwt_extended import (
+    verify_jwt_in_request,
+    get_jwt_identity,
+    get_jwt
+)
+
 
 auth_bp = Blueprint('auth_bp', __name__)
 
@@ -115,31 +122,28 @@ def register():
 
     return jsonify({"message": "User registered successfully!"}), 201
 
+auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
+
 @auth_bp.route('/check-auth', methods=['GET'])
 def check_auth():
-    token = request.cookies.get("access_token")
-
-    if not token:
-        print("No token found in cookies")
-        return jsonify({"error": "Not authenticated"}), 401
-
     try:
-        decoded_token = decode_jwt(token)
-        if not decoded_token:
-            print("Token decoded, but invalid or expired.")
-            return jsonify({"error": "Invalid or expired token"}), 401
-        print("Decoded JWT:", decoded_token)
-    except Exception as e:
-        print(f"Error decoding JWT: {e}")
-        return jsonify({"error": "Invalid token"}), 401
+        # This will raise if no valid JWT cookie is present
+        verify_jwt_in_request(locations=["cookies"])
+    except Exception as err:
+        # You can customize these messages if you like
+        return jsonify({"error": str(err)}), 401
+
+    user_id = get_jwt_identity()
+    claims  = get_jwt()  # contains your additional_claims
 
     return jsonify({
         "message": "Authenticated",
         "user": {
-            "id": decoded_token.get("user_id"),
-            "role": decoded_token.get("role"),
-            "username_or_email": decoded_token.get("username_or_email"),
-            "institution_id": decoded_token.get("institution_id")
+            "id":             user_id,
+            "role":           claims.get("role"),
+            "username_or_email": claims.get("username_or_email"),
+            "institution_id": claims.get("institution_id")
         }
     }), 200
+
 
