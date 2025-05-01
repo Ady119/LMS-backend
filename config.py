@@ -24,7 +24,7 @@ class Config:
     SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "False") == "True" if os.getenv('FLASK_ENV', 'production').lower() == 'production' else False
     SESSION_COOKIE_PATH = "/"
     SESSION_COOKIE_HTTPONLY = True
-    SESSION_COOKIE_SAMESITE = os.getenv("SESSION_COOKIE_SAMESITE", "Lax")
+    SESSION_COOKIE_SAMESITE = os.getenv("SESSION_COOKIE_SAMESITE", "None")
     PERMANENT_SESSION_LIFETIME = timedelta(days=1)
 
 class DevConfig(Config):
