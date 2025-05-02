@@ -911,7 +911,7 @@ def get_student_dashboard():
             "course_title": course.title,
             "degree_name": course.degree.name if course.degree else "N/A",
             "lecturer_name": lecturer_name,
-            "progress": round(progress, 2)
+            "progress": round(progress, 0)
         })
 
     return jsonify({

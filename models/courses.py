@@ -17,7 +17,6 @@ class Course(db.Model):
     degree      = relationship("Degree", back_populates="courses")
     exams       = relationship("Exam", back_populates="course", cascade="all, delete-orphan")
 
-    # ← add this
     chat_room = relationship(
         "ChatRoom",
         back_populates="course",
