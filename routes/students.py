@@ -1017,7 +1017,7 @@ def get_student_profile():
         course_stats.append({
             "course_id": course.id,
             "course_title": course.title,
-            "progress": round(progress, 2)
+            "progress": round(progress, 0)
         })
 
     # Badges earned
