@@ -1,4 +1,4 @@
-import os                           # ← add this
+import os                          
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -8,7 +8,7 @@ from flask_cors import CORS
 from flask_migrate import Migrate
 from flask_session import Session
 from flask_socketio import SocketIO
-from flask_jwt_extended import JWTManager  # ← import JWTManager
+from flask_jwt_extended import JWTManager
 
 from config import config_dict
 from models import db
@@ -25,11 +25,9 @@ app = Flask(__name__)
 def home():
     return "Welcome to the LMS App!"
 
-# Load your Config subclass (DevConfig / ProdConfig, etc)
 env = os.environ.get("FLASK_ENV", "production")
 app.config.from_object(config_dict[env])
 
-# Ensure the JWT cookie settings exist before initializing
 app.config.setdefault("JWT_TOKEN_LOCATION", ["cookies"])
 app.config.setdefault("JWT_ACCESS_COOKIE_NAME", "access_token")
 
@@ -51,20 +49,17 @@ db.init_app(app)
 mail    = Mail(app)
 migrate = Migrate(app, db)
 
-# Now initialize JWT
-jwt = JWTManager(app)  # ← this must come after you set the config defaults
+jwt = JWTManager(app)  
 
 print("Environment:", os.getenv("FLASK_ENV"))
 print("Database URI:", os.getenv("SQLALCHEMY_DATABASE_URI"))
 
-# Register your blueprints
 app.register_blueprint(auth_bp,     url_prefix='/api/auth')
 app.register_blueprint(admin_bp,    url_prefix='/api/admin')
 app.register_blueprint(lecturer_bp, url_prefix='/api/lecturer')
 app.register_blueprint(student_bp,  url_prefix='/api/student')
 app.register_blueprint(chat_bp,     url_prefix='/api/chat')
 
-# Initialize Socket.IO
 socketio = SocketIO(
     app,
     async_mode="eventlet",

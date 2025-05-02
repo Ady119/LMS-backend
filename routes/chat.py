@@ -17,12 +17,10 @@ def get_rooms():
     user    = User.query.get(user_id)
     rooms   = []
 
-    # everyone gets the global room
     global_room = ChatRoom.query.filter_by(is_global=True).first()
     if global_room:
         rooms.append({'id': global_room.id, 'name': 'Global', 'is_global': True})
 
-    # collect course_ids based on role
     if user.role == 'student':
         course_ids = [e.course_id for e in Enrolment.query.filter_by(student_id=user_id)]
     elif user.role == 'lecturer':
@@ -30,7 +28,6 @@ def get_rooms():
     else:
         course_ids = []
 
-    # for each course, if a room exists, include it
     for cid in course_ids:
         room = ChatRoom.query.filter_by(course_id=cid, is_global=False).first()
         if room:

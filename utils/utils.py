@@ -22,7 +22,7 @@ def login_required(f):
         except Exception as e:
             print(f"JWT Decode Error: {e}")
             return jsonify({"error": "Invalid token"}), 401
-
+        
         return f(*args, **kwargs)
     
     return decorated_function

@@ -24,7 +24,6 @@ from models.assignment_submission import AssignmentSubmission
 from models.quiz_attempts import QuizAttempt
 from models.degrees import Degree
 
-# Lecturers' blueprint
 lecturer_bp = Blueprint("lecturer", __name__)
 
 def get_upload_folder():
