@@ -11,7 +11,6 @@ def login_required(f):
         print(f"Received Cookies: {request.cookies}")
 
         token = request.cookies.get("access_token")
-        user  = None
         if not token:
             print("No access_token found in cookies")
             return jsonify({"error": "Unauthorized"}), 401
@@ -23,8 +22,7 @@ def login_required(f):
         except Exception as e:
             print(f"JWT Decode Error: {e}")
             return jsonify({"error": "Invalid token"}), 401
-        g.user = user
+
         return f(*args, **kwargs)
     
     return decorated_function
-
